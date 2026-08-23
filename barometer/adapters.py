@@ -13,6 +13,7 @@ import time
 import urllib.parse
 import urllib.request
 from .detect import Complaint
+from .catalog import infer_variant
 
 USER_AGENT = "the-barometer/0.1 (fleet weather, not verdicts)"
 X_POST_READ_USD = 0.005
@@ -212,10 +213,12 @@ class RedditAdapter:
                 model = route_model(text)
                 if not model or not looks_like_complaint(text): continue
                 permalink = str(d.get("permalink", ""))
+                stored_text = text[:500]
                 out.append(Complaint(
-                    ts=ts, source=f"reddit/{sub}", model=model, text=text[:500],
+                    ts=ts, source=f"reddit/{sub}", model=model, text=stored_text,
                     url=f"https://www.reddit.com{permalink}",
-                    seed_url=(d.get("url_overridden_by_dest") or None)))
+                    seed_url=(d.get("url_overridden_by_dest") or None),
+                    variant=infer_variant(model, stored_text)))
         self._stats["accepted_complaints"] = len(out)
         return out
 
@@ -251,7 +254,8 @@ class HNAdapter:
                     ts=float(hit.get("created_at_i", 0)), source="hn",
                     model=model, text=text,
                     url=f"https://news.ycombinator.com/item?id={hid}",
-                    seed_url=hit.get("url") or None))
+                    seed_url=hit.get("url") or None,
+                    variant=infer_variant(model, text)))
         return out
 
 
@@ -407,6 +411,7 @@ class XAdapter:
                     text=text,
                     url=f"https://x.com/i/web/status/{post_id}",
                     seed_url=_x_seed_url(post),
+                    variant=infer_variant(routed_model, text),
                 ))
 
         self._stats["accepted_complaints"] = len(out)

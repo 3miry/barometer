@@ -7,7 +7,7 @@ from .detect import Complaint, CanaryReading, ProviderEvent
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS complaints(
   id TEXT PRIMARY KEY, ts REAL, source TEXT, model TEXT,
-  text TEXT, url TEXT, seed_url TEXT);
+  text TEXT, url TEXT, seed_url TEXT, variant TEXT);
 CREATE TABLE IF NOT EXISTS readings(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, model TEXT,
   logprobs TEXT, fingerprint TEXT);
@@ -31,6 +31,16 @@ class Store:
     def __init__(self, path: str = "barometer.db"):
         self.db = sqlite3.connect(path)
         self.db.executescript(SCHEMA)
+        columns = {
+            row[1] for row in self.db.execute("PRAGMA table_info(complaints)")
+        }
+        if "variant" not in columns:
+            self.db.execute("ALTER TABLE complaints ADD COLUMN variant TEXT")
+        self.db.execute(
+            "CREATE INDEX IF NOT EXISTS ix_c_variant_ts "
+            "ON complaints(variant, ts)"
+        )
+        self.db.commit()
 
     def close(self) -> None:
         """Close the SQLite connection and release its filesystem handle."""
@@ -50,15 +60,19 @@ class Store:
         new = 0
         for c in cs:
             cur = self.db.execute(
-                "INSERT OR IGNORE INTO complaints VALUES (?,?,?,?,?,?,?)",
-                (_cid(c), c.ts, c.source, c.model, c.text, c.url, c.seed_url))
+                "INSERT OR IGNORE INTO complaints"
+                "(id,ts,source,model,text,url,seed_url,variant) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (_cid(c), c.ts, c.source, c.model, c.text, c.url, c.seed_url,
+                 c.variant))
             new += cur.rowcount
         self.db.commit()
         return new
 
     def complaints(self, model: str | None = None,
                    since: float = 0.0) -> list[Complaint]:
-        q = "SELECT ts,source,model,text,url,seed_url FROM complaints WHERE ts>=?"
+        q = ("SELECT ts,source,model,text,url,seed_url,variant "
+             "FROM complaints WHERE ts>=?")
         args: list = [since]
         if model: q += " AND model=?"; args.append(model)
         rows = self.db.execute(q + " ORDER BY ts", args).fetchall()

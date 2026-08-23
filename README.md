@@ -2,7 +2,7 @@
 DownDetector for model *health*: separates corroborated anomaly from
 perceived weather. Core doctrine: says "something changed", never "nerfed".
 
-## What's here (MVP core, stdlib-only, 33 tests green)
+## What's here (MVP core, stdlib-only, 35 tests green)
 - `barometer/detect.py` — complaint taxonomy; cascade dedup (shingle
   Jaccard + shared-seed collapse: one viral post = ONE datum);
   cross-community independence scoring; trailing Poisson-ish baselines;
@@ -51,10 +51,14 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 | GPT / ChatGPT | OpenAI | ChatGPT, GPT-5, GPT-4, GPT-4o, o3, o4 |
 | Gemini | Google | Gemini, Google AI, Bard |
 
-Detection currently pools reports at family level. The public landing page can
-be searched by recognised model term, family, or lab, but does not present
-variant-specific counts. Exact-model attribution requires a later data-model
-change rather than inference from ambiguous posts.
+Detection still establishes its signal baseline at family level, but the public
+landing page breaks report volume down by exact model whenever a post names one
+explicitly. Ambiguous posts remain in a visible unspecified bucket rather than
+being guessed into a variant.
+
+Future presentation direction: an optional, reduced-motion-aware ambient
+weather layer driven by signal and complaint-category tags. It remains
+decorative and must never make the evidence look stronger than it is.
 
 ## Pipeline (added overnight)
 - `store.py` — SQLite state: complaint dedup on stable id, readings, events.

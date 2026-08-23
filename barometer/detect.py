@@ -13,6 +13,7 @@ class Complaint:
     text: str
     url: str | None = None
     seed_url: str | None = None   # link the post is sharing, if any
+    variant: str | None = None    # exact model only when the report says it
 
 @dataclass
 class CanaryReading:

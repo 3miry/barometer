@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import tempfile
 
-from .catalog import model_catalog_entry
+from .catalog import model_catalog_entry, variant_breakdown
 from .detect import Assessment, Complaint, cascade_clusters, classify
 
 
@@ -33,6 +33,8 @@ def _model_summary(
         "label": meta["label"],
         "lab": meta["lab"],
         "recognised_terms": list(meta["recognised_terms"]),
+        "model_breakdown": variant_breakdown(model, complaints)
+        if model else [],
         "reports": len(complaints),
         "independent_reports": len(cascade_clusters(complaints)),
         "latest_report_at": _iso(max(c.ts for c in complaints))

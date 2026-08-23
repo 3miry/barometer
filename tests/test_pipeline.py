@@ -3,6 +3,7 @@ refuses to over-sample, and one tick produces weather. No network anywhere."""
 import json
 import io
 import os
+import sqlite3
 import tempfile
 import unittest
 from contextlib import redirect_stderr
@@ -14,6 +15,7 @@ from barometer.store import Store
 from barometer.adapters import (RedditAdapter, HNAdapter, XAdapter,
                                 reddit_token_transport, route_model)
 from barometer.canary import CanaryRunner, BudgetRefusal, CANARY_TEXT
+from barometer.catalog import infer_variant
 from barometer.cli import tick
 from barometer.dashboard import render_landing
 from barometer.detect import Complaint, ProviderEvent
@@ -96,6 +98,27 @@ def reddit_test_adapter(listing_transport=None):
     )
 
 class AdapterTests(unittest.TestCase):
+    def test_variant_routing_is_explicit_only(self):
+        self.assertEqual(
+            infer_variant("claude", "Claude Opus 5 feels slow"),
+            "claude-opus-5",
+        )
+        self.assertEqual(
+            infer_variant("claude", "Claude 4 Opus feels slow"),
+            "claude-opus-4",
+        )
+        self.assertEqual(
+            infer_variant("gpt", "GPT-5 quality dropped"),
+            "gpt-5",
+        )
+        self.assertEqual(
+            infer_variant("gemini", "Gemini 2.5 Flash feels slow"),
+            "gemini-2.5-flash",
+        )
+        self.assertIsNone(
+            infer_variant("claude", "Claude feels slow today"),
+        )
+
     @patch("barometer.adapters.urllib.request.urlopen")
     def test_reddit_token_exchange_uses_basic_auth(self, urlopen):
         response = urlopen.return_value.__enter__.return_value
@@ -218,6 +241,22 @@ class AdapterTests(unittest.TestCase):
                 self.assertEqual(len(adapter.errors), 1)
 
 class StoreTests(unittest.TestCase):
+    def test_legacy_complaint_table_gains_variant_column(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "legacy.db")
+            db = sqlite3.connect(path)
+            db.execute(
+                "CREATE TABLE complaints(id TEXT PRIMARY KEY, ts REAL, "
+                "source TEXT, model TEXT, text TEXT, url TEXT, seed_url TEXT)"
+            )
+            db.close()
+            with Store(path) as store:
+                columns = {
+                    row[1]
+                    for row in store.db.execute("PRAGMA table_info(complaints)")
+                }
+            self.assertIn("variant", columns)
+
     def test_dedup_on_reingest(self):
         with tempfile.TemporaryDirectory() as d:
             with Store(os.path.join(d, "b.db")) as store:
@@ -355,6 +394,15 @@ class TickTests(unittest.TestCase):
             self.assertEqual(payload["models"]["claude"]["lab"], "Anthropic")
             self.assertIn(
                 "Sonnet", payload["models"]["claude"]["recognised_terms"])
+            self.assertEqual(
+                payload["models"]["claude"]["model_breakdown"],
+                [{
+                    "explicit": False,
+                    "key": "unspecified",
+                    "label": "Unspecified Claude model",
+                    "reports": 1,
+                }],
+            )
             with open(history, encoding="utf-8") as handle:
                 public_history = handle.read()
             self.assertNotIn("SECRET_RAW_WORDS", public_history)
@@ -378,9 +426,9 @@ class TickTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             models = {
                 "gpt": ([Complaint(
-                    NOW, "hn", "gpt", "GPT quality worse PRIVATE GPT TEXT")], []),
+                    NOW, "hn", "gpt", "GPT-5 quality worse PRIVATE GPT TEXT")], []),
                 "claude": ([
-                    Complaint(NOW - 2, "hn", "claude", "Claude slow PRIVATE ONE"),
+                    Complaint(NOW - 2, "hn", "claude", "Claude Opus 5 slow PRIVATE ONE"),
                     Complaint(NOW - 1, "x", "claude", "Claude lazy PRIVATE TWO"),
                 ], []),
             }
@@ -396,6 +444,8 @@ class TickTests(unittest.TestCase):
             self.assertIn('data-lab-filter="openai"', page)
             self.assertIn("Sonnet", page)
             self.assertIn("GPT-5", page)
+            self.assertIn("Claude Opus 5", page)
+            self.assertIn("Unspecified Claude model", page)
             self.assertNotIn("PRIVATE ONE", page)
             self.assertNotIn("PRIVATE GPT TEXT", page)
 
