@@ -9,6 +9,7 @@ from .canary import CanaryRunner
 from .detect import detect_bursts, classify_tier
 from .dashboard import render_dashboard, render_landing
 from .public import write_public_snapshot
+from .report_page import render_report_form
 
 def tick(store: Store, adapters: list, runner: CanaryRunner | None = None,
          out_dir: str = ".", window_days: int = 21,
@@ -74,6 +75,7 @@ def tick(store: Store, adapters: list, runner: CanaryRunner | None = None,
         generated_at=now,
         window_days=window_days,
     )
+    render_report_form(public_models, f"{out_dir}/report.html")
 
     if public_snapshot is not None:
         write_public_snapshot(

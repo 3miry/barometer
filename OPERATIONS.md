@@ -24,10 +24,16 @@ not alter the running task.
 - `observation/public/history.json` — one aggregate sample per UTC day
 - `observation/public/status.json` — last-run completion and error state
 - `observation/public/barometer_*.html` — aggregate dashboards
+- `observation/public/index.html` and `report.html` — public landing and form
+- `observation/private/user_reports.db` — private pending moderation queue
 
 The runtime directory is ignored by Git. Public artifacts contain no post text
 or source URLs. Repeated runs on the same UTC day replace that day's history
 sample rather than adding duplicate points.
+
+User submissions are a separate lane and never enter the detector
+automatically. See `USER_REPORTS.md` for local serving, review, retention, and
+the production-deployment boundary.
 
 ## Useful commands
 

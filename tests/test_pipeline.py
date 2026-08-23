@@ -421,6 +421,13 @@ class TickTests(unittest.TestCase):
             self.assertNotIn("private-test", landing_html)
             self.assertIn("Most reported right now", landing_html)
             self.assertIn("Search by lab, family, or model", landing_html)
+            with open(os.path.join(d, "public", "report.html"),
+                      encoding="utf-8") as handle:
+                report_form = handle.read()
+            self.assertNotIn("SECRET_RAW_WORDS", report_form)
+            self.assertNotIn("private-test", report_form)
+            self.assertIn("Private moderation boundary", report_form)
+            self.assertIn('name="model_name"', report_form)
 
     def test_landing_ranks_reports_and_exposes_family_filters(self):
         with tempfile.TemporaryDirectory() as d:

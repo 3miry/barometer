@@ -168,7 +168,7 @@ header{{padding:30px 0 12px;border-bottom:1px solid rgba(255,255,255,.06)}}
 .brand{{font-size:19px;font-weight:750;letter-spacing:.01em;text-decoration:none}}
 .brand span{{color:var(--blue)}} .nav-note{{color:var(--muted);font-size:13px}}
 .report-button{{border:1px solid var(--line);border-radius:999px;padding:8px 13px;
-  color:var(--muted);font-size:13px}} .report-button b{{color:var(--amber);font-weight:650}}
+  color:#c4d1da;font-size:13px;text-decoration:none}} .report-button:hover{{border-color:var(--blue);color:#fff}}
 .hero{{padding:72px 0 44px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(270px,.7fr);gap:56px;align-items:end}}
 .eyebrow,.section-kicker,.lab{{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}}
 h1{{font-size:clamp(42px,7vw,78px);line-height:.96;letter-spacing:-.055em;margin:14px 0 24px;max-width:820px}}
@@ -215,7 +215,7 @@ footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);
 <header><div class="shell nav">
   <a class="brand" href="index.html"><span>☂</span> The Barometer</a>
   <div class="nav-note">fleet weather, not verdicts</div>
-  <span class="report-button" aria-disabled="true">Report an issue · <b>coming next</b></span>
+  <a class="report-button" href="report.html">Report an issue →</a>
 </div></header>
 <main class="shell">
   <section class="hero">

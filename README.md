@@ -2,7 +2,7 @@
 DownDetector for model *health*: separates corroborated anomaly from
 perceived weather. Core doctrine: says "something changed", never "nerfed".
 
-## What's here (MVP core, stdlib-only, 35 tests green)
+## What's here (MVP core, stdlib-only, tests green)
 - `barometer/detect.py` — complaint taxonomy; cascade dedup (shingle
   Jaccard + shared-seed collapse: one viral post = ONE datum);
   cross-community independence scoring; trailing Poisson-ish baselines;
@@ -14,6 +14,10 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
   weather reports, with the ethics boundary baked in.
 - `barometer/catalog.py` — public lab/family metadata and recognised model
   terms used by search and filtering.
+- `barometer/submissions.py` — separately stored, moderated user reports;
+  nothing enters detection automatically.
+- `serve_barometer.py` and `manage_reports.py` — local form/API evaluation and
+  deliberate queue review. See `USER_REPORTS.md`.
 - `tests/` — torture suite: quiet weather doesn't alarm; cascades can't
   manufacture bursts; genuine multi-source bursts tier correctly; release
   days need double evidence; stable canaries hold T1; fingerprint change
