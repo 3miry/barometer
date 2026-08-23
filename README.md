@@ -62,11 +62,13 @@ explicitly. Ambiguous posts remain in a visible unspecified bucket rather than
 being guessed into a variant. Monitored models remain visible at zero so absence
 of reports is distinguishable from absence of tracking.
 
-Complaint categories now form a small cloud-shaped word graphic on each family
-card; word size reflects report frequency, while the underlying counts remain
-available to sighted and screen-reader users. Its subtle drift respects reduced
-motion preferences. A richer ambient weather layer remains a future decorative
-option and must never make the evidence look stronger than it is.
+Each family card now renders a code-native weather scene. Dominant report themes
+choose the visual metaphor (quality as rain, sluggishness as fog, lazy/shortened
+outputs as heat haze, refusals as a storm, and no reports as a clear night),
+while corroborated signals override the theme with a storm. The foreground cloud
+has no filled silhouette: muted, `aria-hidden` filler words form its outline and
+the counted report themes form its bold interior. Motion respects reduced-motion
+preferences, and the artwork never changes the underlying evidence tier.
 
 ## Pipeline (added overnight)
 - `store.py` — SQLite state: complaint dedup on stable id, readings, events.

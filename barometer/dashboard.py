@@ -39,6 +39,35 @@ def _activity_status(assessments: list[Assessment]) -> tuple[str, str, str]:
     return "quiet", "No burst detected", "#7aa78d"
 
 
+def _weather_style(status: str, categories: Counter) -> tuple[str, str]:
+    """Choose illustrative weather without changing the underlying signal tier."""
+    if status in {"corroborated", "attributed"}:
+        return "storm", "electrical storm"
+    if not categories:
+        return "clear", "clear night"
+    dominant = max(
+        categories.items(), key=lambda item: (item[0] != "other", item[1])
+    )[0]
+    weather = {
+        "sluggish": ("fog", "fog bank"),
+        "lazy": ("heat", "heat haze"),
+        "length": ("heat", "heat haze"),
+        "refusals": ("storm", "electrical storm"),
+        "quality": ("rain", "rain front"),
+        "other": ("overcast", "overcast"),
+    }.get(dominant, ("overcast", "overcast"))
+    if status == "attention" and weather[0] == "overcast":
+        return "rain", "rain front"
+    return weather
+
+
+CLOUD_FILLER_WORDS = (
+    "the", "and", "it", "this", "that", "was", "is", "seems",
+    "today", "again", "response", "answer", "model", "prompt",
+    "output", "context", "maybe", "usually",
+)
+
+
 def render_landing(
         models: dict[str, tuple[list[Complaint], list[Assessment]]],
         out_path: str, generated_at: float, window_days: int) -> None:
@@ -78,6 +107,7 @@ def render_landing(
         category_items = sorted(
             categories.items(), key=lambda item: (item[0] == "other", -item[1], item[0])
         )[:4]
+        weather_key, weather_label = _weather_style(status_key, categories)
         source_text = " · ".join(
             f"{html.escape(source.upper())} {count}"
             for source, count in sorted(sources.items())
@@ -92,16 +122,19 @@ def render_landing(
             f'{html.escape(category)} <b>{count}</b></span>'
             for category, count in category_items
         ) or '<span class="cloud-word clear">clear skies</span>'
+        filler_words = "".join(
+            f"<span>{html.escape(word)}</span>"
+            for _ in range(8)
+            for word in CLOUD_FILLER_WORDS
+        )
         category_html = f"""
           <div class="cloud-heading">
-            <span class="breakdown-label">Report weather</span>
+            <span class="breakdown-label">Report weather · {html.escape(weather_label)}</span>
             <span class="cloud-key">word size = report frequency</span>
           </div>
           <div class="category-cloud" role="img"
             aria-label="Reported themes: {html.escape(category_label, quote=True)}">
-            <svg class="cloud-form" viewBox="0 0 410 112" aria-hidden="true">
-              <path d="M72 104C36 104 12 87 12 64c0-21 21-39 51-42C76 7 96 0 120 0c32 0 59 17 70 43 14-12 32-19 53-19 36 0 66 23 73 55 8-5 19-7 30-7 29 0 52 14 52 32H72Z"/>
-            </svg>
+            <div class="cloud-filler" aria-hidden="true">{filler_words}</div>
             <div class="cloud-words" aria-hidden="true">{category_words}</div>
           </div>"""
         terms = tuple(meta["recognised_terms"])
@@ -123,12 +156,14 @@ def render_landing(
         ).lower()
         latest = max((c.ts for c in complaints), default=0)
         cards.append(f"""
-        <article class="model-card" style="--status-colour:{status_colour}"
+        <article class="model-card weather-{weather_key}"
+          style="--status-colour:{status_colour}"
           data-model="{html.escape(model)}"
           data-lab="{html.escape(meta['lab'].lower())}"
           data-status="{status_key}" data-reports="{len(complaints)}"
           data-independent="{len(clusters)}" data-latest="{latest:.0f}"
           data-search="{html.escape(search_terms, quote=True)}">
+          <div class="weather-scene" aria-hidden="true"><span class="weather-motion"></span></div>
           <div class="rank" aria-label="Rank {rank}">{rank:02d}</div>
           <div class="card-main">
             <div class="card-heading">
@@ -211,17 +246,29 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 .filter-chip.active{{color:var(--paper);background:var(--blue);border-color:var(--blue);font-weight:750}}
 .results-meta{{color:var(--muted);font-size:12px;margin-left:auto}}
 .model-list{{display:grid;gap:14px}}
-.model-card{{display:grid;grid-template-columns:46px minmax(0,1fr) auto;gap:18px;align-items:stretch;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow)}}
+.model-card{{position:relative;isolation:isolate;overflow:hidden;display:grid;grid-template-columns:46px minmax(0,1fr) auto;gap:18px;align-items:stretch;background:#101720;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow)}} .model-card>:not(.weather-scene){{position:relative;z-index:2}}
+.weather-scene{{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}} .weather-scene::after{{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,14,20,.38),rgba(9,14,20,.74) 74%,rgba(9,14,20,.9)),linear-gradient(0deg,rgba(8,12,17,.34),transparent 58%)}} .weather-motion{{position:absolute;display:block;pointer-events:none}}
+.weather-rain .weather-scene{{background:radial-gradient(ellipse at 14% 4%,rgba(105,139,158,.42),transparent 42%),radial-gradient(ellipse at 70% 120%,rgba(47,76,94,.4),transparent 62%),linear-gradient(145deg,#1b2a35,#0c131b 72%)}} .weather-rain .weather-motion{{inset:-60% -20%;opacity:.28;background:repeating-linear-gradient(111deg,transparent 0 17px,rgba(187,220,234,.52) 18px 19px,transparent 20px 34px);animation:rain-fall 1.8s linear infinite}}
+.weather-fog .weather-scene{{background:linear-gradient(150deg,#26323a,#101820 70%)}} .weather-fog .weather-motion{{inset:5% -28%;opacity:.34;filter:blur(14px);background:radial-gradient(ellipse at 28% 34%,rgba(213,225,226,.52),transparent 32%),radial-gradient(ellipse at 66% 72%,rgba(163,181,187,.44),transparent 38%);animation:fog-bank 14s ease-in-out infinite alternate}}
+.weather-storm .weather-scene{{background:radial-gradient(circle at 76% 12%,rgba(125,123,171,.32),transparent 24%),radial-gradient(ellipse at 12% 115%,rgba(41,72,91,.4),transparent 60%),linear-gradient(142deg,#202638,#090e17 74%)}} .weather-storm .weather-motion{{right:15%;top:-12px;width:92px;height:175px;background:linear-gradient(180deg,#f6f0bf,#b4d8e8 58%,transparent);clip-path:polygon(52% 0,22% 48%,46% 46%,29% 100%,76% 37%,54% 40%);filter:drop-shadow(0 0 18px rgba(218,235,255,.8));animation:lightning 7s steps(1,end) infinite}}
+.weather-heat .weather-scene{{background:radial-gradient(circle at 16% 18%,rgba(235,154,81,.43),transparent 29%),radial-gradient(ellipse at 76% 110%,rgba(156,70,52,.38),transparent 54%),linear-gradient(145deg,#38271e,#171218 72%)}} .weather-heat .weather-motion{{inset:-30% -10%;opacity:.2;filter:blur(12px);background:repeating-linear-gradient(92deg,transparent 0 42px,rgba(255,196,124,.6) 48px,transparent 58px);animation:heat-rise 8s ease-in-out infinite alternate}}
+.weather-overcast .weather-scene{{background:radial-gradient(ellipse at 12% 12%,rgba(123,141,151,.36),transparent 33%),radial-gradient(ellipse at 68% 2%,rgba(80,99,111,.32),transparent 38%),linear-gradient(145deg,#202b33,#10171e 72%)}} .weather-overcast .weather-motion{{inset:0;opacity:.2;background:radial-gradient(ellipse at 22% 22%,#c4d0d4,transparent 19%),radial-gradient(ellipse at 55% 8%,#8499a3,transparent 23%);animation:fog-bank 18s ease-in-out infinite alternate}}
+.weather-clear .weather-scene{{background:radial-gradient(circle at 14% 110%,rgba(48,105,117,.38),transparent 45%),linear-gradient(145deg,#111d2d,#090d16 76%)}} .weather-clear .weather-motion{{inset:0;opacity:.55;background:radial-gradient(circle at 12% 22%,#d8edf2 0 1px,transparent 1.5px),radial-gradient(circle at 28% 10%,#a8d1db 0 1px,transparent 1.5px),radial-gradient(circle at 44% 31%,#e7f4f6 0 1px,transparent 1.5px),radial-gradient(circle at 65% 16%,#a8c7d5 0 1px,transparent 1.5px),radial-gradient(circle at 82% 35%,#d5e6ec 0 1px,transparent 1.5px);background-size:190px 150px}}
 .model-card[hidden]{{display:none}} .rank{{color:#52606d;font:700 15px/1 ui-monospace,monospace;padding-top:6px}}
 .card-heading{{display:flex;justify-content:space-between;align-items:start;gap:18px}} h3{{font-size:26px;letter-spacing:-.025em;margin:2px 0 0}}
 .status{{display:inline-flex;align-items:center;gap:7px;color:#c4ccd3;font-size:12px;white-space:nowrap}}
 .status i{{width:8px;height:8px;border-radius:50%;background:var(--status-colour);box-shadow:0 0 0 4px color-mix(in srgb,var(--status-colour) 14%,transparent)}}
 .report-line{{display:flex;align-items:baseline;gap:9px;margin:19px 0 8px}} .report-line strong{{font-size:34px;line-height:1}} .report-line span{{color:var(--muted)}}
 .meta-line{{display:flex;justify-content:space-between;gap:16px;color:var(--muted);font-size:12px;margin:9px 0 14px}}
-.category-weather{{width:min(430px,100%);margin:15px 0 2px}} .cloud-heading{{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:-2px}} .cloud-key{{color:var(--faint);font-size:10px}}
-.category-cloud{{position:relative;width:100%;aspect-ratio:3.66/1;isolation:isolate;filter:drop-shadow(0 12px 15px rgba(0,0,0,.18));animation:cloud-drift 11s ease-in-out infinite alternate}} .cloud-form{{position:absolute;inset:0;width:100%;height:100%;overflow:visible}} .cloud-form path{{fill:color-mix(in srgb,var(--status-colour) 10%,#17212b);stroke:color-mix(in srgb,var(--status-colour) 31%,#33404b);stroke-width:1.2}}
-.cloud-words{{position:absolute;inset:0;color:#c5d2da;text-shadow:0 1px 8px rgba(0,0,0,.5)}} .cloud-word{{position:absolute;font-size:var(--word-size,12px);line-height:1;font-weight:650;letter-spacing:-.015em;white-space:nowrap;transform:translate(-50%,-50%)}} .cloud-word b{{font-size:.52em;color:var(--status-colour);vertical-align:super;margin-left:2px}} .cloud-word:nth-child(1){{left:47%;top:42%}} .cloud-word:nth-child(2){{left:27%;top:66%}} .cloud-word:nth-child(3){{left:70%;top:63%}} .cloud-word:nth-child(4){{left:49%;top:79%}} .cloud-word.clear{{left:50%;top:62%;color:var(--muted);font-weight:500;font-style:italic}}
+.category-weather{{width:min(500px,100%);margin:15px 0 2px}} .cloud-heading{{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:-2px}} .cloud-key{{color:#71808d;font-size:10px}}
+.category-cloud{{position:relative;width:100%;aspect-ratio:3.5/1;isolation:isolate;filter:drop-shadow(0 12px 15px rgba(0,0,0,.2));animation:cloud-drift 11s ease-in-out infinite alternate}}
+.cloud-filler{{position:absolute;inset:0;display:flex;align-content:center;justify-content:center;flex-wrap:wrap;gap:1px 5px;padding:3px 9px;overflow:hidden;color:color-mix(in srgb,var(--status-colour) 48%,#c3d1d7);font-size:9.5px;font-weight:560;line-height:1.05;letter-spacing:.01em;opacity:.62;mix-blend-mode:screen;text-shadow:0 1px 7px rgba(0,0,0,.8);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 410 112'%3E%3Cpath fill='white' d='M72%20104C36%20104%2012%2087%2012%2064c0-21%2021-39%2051-42C76%207%2096%200%20120%200c32%200%2059%2017%2070%2043%2014-12%2032-19%2053-19%2036%200%2066%2023%2073%2055%208-5%2019-7%2030-7%2029%200%2052%2014%2052%2032H72Z'/%3E%3C/svg%3E") center/100% 100% no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 410 112'%3E%3Cpath fill='white' d='M72%20104C36%20104%2012%2087%2012%2064c0-21%2021-39%2051-42C76%207%2096%200%20120%200c32%200%2059%2017%2070%2043%2014-12%2032-19%2053-19%2036%200%2066%2023%2073%2055%208-5%2019-7%2030-7%2029%200%2052%2014%2052%2032H72Z'/%3E%3C/svg%3E") center/100% 100% no-repeat}} .cloud-filler span:nth-child(3n){{opacity:.6}} .cloud-filler span:nth-child(5n){{font-size:1.12em}}
+.cloud-words{{position:absolute;inset:0;color:#edf3f5;text-shadow:0 1px 8px rgba(0,0,0,.72)}} .cloud-word{{position:absolute;font-size:var(--word-size,12px);line-height:1;font-weight:700;letter-spacing:-.015em;white-space:nowrap;transform:translate(-50%,-50%)}} .cloud-word b{{font-size:.52em;color:color-mix(in srgb,var(--status-colour) 72%,#fff);vertical-align:super;margin-left:2px}} .cloud-word:nth-child(1){{left:47%;top:40%}} .cloud-word:nth-child(2){{left:27%;top:64%}} .cloud-word:nth-child(3){{left:70%;top:62%}} .cloud-word:nth-child(4){{left:49%;top:78%}} .cloud-word.clear{{left:50%;top:62%;color:#b8c6cc;font-weight:560;font-style:italic}}
 @keyframes cloud-drift{{from{{transform:translate3d(-2px,1px,0)}}to{{transform:translate3d(3px,-1px,0)}}}}
+@keyframes rain-fall{{from{{transform:translate3d(0,-8%,0)}}to{{transform:translate3d(-5%,16%,0)}}}}
+@keyframes fog-bank{{from{{transform:translate3d(-4%,0,0)}}to{{transform:translate3d(5%,1%,0)}}}}
+@keyframes heat-rise{{from{{transform:translate3d(0,4%,0) scaleX(1)}}to{{transform:translate3d(2%,-4%,0) scaleX(1.04)}}}}
+@keyframes lightning{{0%,88%,92%,100%{{opacity:0}}89%{{opacity:.9}}90%{{opacity:.18}}91%{{opacity:.75}}}}
 .breakdown{{margin-top:14px}} .breakdown-label{{display:block;color:var(--faint);font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;margin-bottom:7px}}
 .model-bars{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}} .model-row-head{{display:flex;justify-content:space-between;gap:12px;color:#bdd0da;font-size:11px;margin-bottom:4px}} .model-row-head b{{color:#fff}} .model-volume{{height:6px;background:#0a1016;border-radius:99px;overflow:hidden}} .model-volume span{{display:block;height:100%;min-width:0;background:linear-gradient(90deg,#527b8e,var(--blue));border-radius:inherit}} .model-row.residual .model-row-head{{color:var(--muted)}} .model-row.residual .model-volume span{{background:#58636d}}
 .detail-link{{align-self:center;text-decoration:none;border-left:1px solid var(--line);padding:22px 4px 22px 24px;color:#b7c1ca;white-space:nowrap}}
@@ -233,7 +280,7 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 .method-card{{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}}
 .method-card b{{display:block;margin-bottom:5px}} .method-card span{{color:var(--muted);font-size:12px}}
 footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);font-size:12px}}
-@media(prefers-reduced-motion:reduce){{.category-cloud{{animation:none}}}}
+@media(prefers-reduced-motion:reduce){{.category-cloud,.weather-motion{{animation:none!important}}}}
 @media(max-width:780px){{.hero{{grid-template-columns:1fr;padding-top:50px}}.stats-row{{grid-template-columns:1fr 1fr}}.stat:nth-child(2){{border-right:0}}.stat{{border-bottom:1px solid var(--line)}}.control-row{{grid-template-columns:1fr}}.model-card{{grid-template-columns:32px 1fr}}.detail-link{{grid-column:2;border-left:0;border-top:1px solid var(--line);padding:14px 0 0}}.meta-line,.section-head{{align-items:start;flex-direction:column}}.model-bars{{grid-template-columns:1fr}}.method{{grid-template-columns:1fr}}.method-grid{{grid-template-columns:1fr}}}}
 </style></head><body>
 <header><div class="shell nav">
