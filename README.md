@@ -2,7 +2,7 @@
 DownDetector for model *health*: separates corroborated anomaly from
 perceived weather. Core doctrine: says "something changed", never "nerfed".
 
-## What's here (MVP core, stdlib-only, 32 tests green)
+## What's here (MVP core, stdlib-only, 33 tests green)
 - `barometer/detect.py` — complaint taxonomy; cascade dedup (shingle
   Jaccard + shared-seed collapse: one viral post = ONE datum);
   cross-community independence scoring; trailing Poisson-ish baselines;
@@ -10,8 +10,10 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
   spike — comparison effect); canary logprob drift (distribution shape on a
   fixed benign text — the no-specimens rule, honoured); tier logic
   T1 perceived / T2 corroborated / T3 attributed.
-- `barometer/dashboard.py` — self-contained HTML weather report with the
-  ethics footer baked in.
+- `barometer/dashboard.py` — self-contained ranked landing page plus model
+  weather reports, with the ethics boundary baked in.
+- `barometer/catalog.py` — public lab/family metadata and recognised model
+  terms used by search and filtering.
 - `tests/` — torture suite: quiet weather doesn't alarm; cascades can't
   manufacture bursts; genuine multi-source bursts tier correctly; release
   days need double evidence; stable canaries hold T1; fingerprint change
@@ -40,6 +42,19 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - Generated public artifacts must remain aggregate-only. Reddit content and
   identifiers are processed transiently and are never written to SQLite or
   rendered into public output.
+
+## Tracked model families
+
+| Public family | Lab | Recognised mentions |
+| --- | --- | --- |
+| Claude | Anthropic | Claude, Sonnet, Opus, Haiku |
+| GPT / ChatGPT | OpenAI | ChatGPT, GPT-5, GPT-4, GPT-4o, o3, o4 |
+| Gemini | Google | Gemini, Google AI, Bard |
+
+Detection currently pools reports at family level. The public landing page can
+be searched by recognised model term, family, or lab, but does not present
+variant-specific counts. Exact-model attribution requires a later data-model
+change rather than inference from ambiguous posts.
 
 ## Pipeline (added overnight)
 - `store.py` — SQLite state: complaint dedup on stable id, readings, events.

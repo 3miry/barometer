@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import tempfile
 
+from .catalog import model_catalog_entry
 from .detect import Assessment, Complaint, cascade_clusters, classify
 
 
@@ -17,6 +18,10 @@ def _iso(ts: float) -> str:
 
 def _model_summary(
         complaints: list[Complaint], assessments: list[Assessment]) -> dict:
+    model = complaints[0].model if complaints else None
+    meta = model_catalog_entry(model) if model else {
+        "label": "Unknown", "lab": "Other", "recognised_terms": (),
+    }
     categories = Counter(
         category
         for complaint in complaints
@@ -25,6 +30,9 @@ def _model_summary(
     sources = Counter(complaint.source for complaint in complaints)
     highest_tier = max((assessment.tier for assessment in assessments), default=0)
     return {
+        "label": meta["label"],
+        "lab": meta["lab"],
+        "recognised_terms": list(meta["recognised_terms"]),
         "reports": len(complaints),
         "independent_reports": len(cascade_clusters(complaints)),
         "latest_report_at": _iso(max(c.ts for c in complaints))

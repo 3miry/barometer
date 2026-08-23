@@ -15,6 +15,7 @@ from barometer.adapters import (RedditAdapter, HNAdapter, XAdapter,
                                 reddit_token_transport, route_model)
 from barometer.canary import CanaryRunner, BudgetRefusal, CANARY_TEXT
 from barometer.cli import tick
+from barometer.dashboard import render_landing
 from barometer.detect import Complaint, ProviderEvent
 
 NOW = 1_781_300_000.0
@@ -351,6 +352,9 @@ class TickTests(unittest.TestCase):
             self.assertNotIn("private-test", public_text)
             payload = json.loads(public_text)
             self.assertEqual(payload["models"]["claude"]["reports"], 1)
+            self.assertEqual(payload["models"]["claude"]["lab"], "Anthropic")
+            self.assertIn(
+                "Sonnet", payload["models"]["claude"]["recognised_terms"])
             with open(history, encoding="utf-8") as handle:
                 public_history = handle.read()
             self.assertNotIn("SECRET_RAW_WORDS", public_history)
@@ -362,6 +366,38 @@ class TickTests(unittest.TestCase):
             self.assertNotIn("SECRET_RAW_WORDS", public_html)
             self.assertNotIn("private-test", public_html)
             self.assertIn("source mix: hn × 1", public_html)
+            with open(os.path.join(d, "public", "index.html"),
+                      encoding="utf-8") as handle:
+                landing_html = handle.read()
+            self.assertNotIn("SECRET_RAW_WORDS", landing_html)
+            self.assertNotIn("private-test", landing_html)
+            self.assertIn("Most reported right now", landing_html)
+            self.assertIn("Search by lab, family, or model", landing_html)
+
+    def test_landing_ranks_reports_and_exposes_family_filters(self):
+        with tempfile.TemporaryDirectory() as d:
+            models = {
+                "gpt": ([Complaint(
+                    NOW, "hn", "gpt", "GPT quality worse PRIVATE GPT TEXT")], []),
+                "claude": ([
+                    Complaint(NOW - 2, "hn", "claude", "Claude slow PRIVATE ONE"),
+                    Complaint(NOW - 1, "x", "claude", "Claude lazy PRIVATE TWO"),
+                ], []),
+            }
+            out_path = os.path.join(d, "index.html")
+            render_landing(models, out_path, generated_at=NOW, window_days=21)
+            with open(out_path, encoding="utf-8") as handle:
+                page = handle.read()
+            self.assertLess(
+                page.index('data-model="claude"'),
+                page.index('data-model="gpt"'),
+            )
+            self.assertIn('data-lab-filter="anthropic"', page)
+            self.assertIn('data-lab-filter="openai"', page)
+            self.assertIn("Sonnet", page)
+            self.assertIn("GPT-5", page)
+            self.assertNotIn("PRIVATE ONE", page)
+            self.assertNotIn("PRIVATE GPT TEXT", page)
 
     def test_corrupt_public_history_is_not_silently_overwritten(self):
         with tempfile.TemporaryDirectory() as d:
