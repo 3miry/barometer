@@ -19,7 +19,7 @@ def render_report_form(
         item["label"]
         for family, (complaints, _) in models.items()
         for item in variant_breakdown(family, complaints)
-        if item["explicit"]
+        if item["monitored"]
     }
     for meta in MODEL_CATALOG.values():
         exact_names.update(meta["recognised_terms"])

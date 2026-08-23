@@ -6,6 +6,7 @@ from pathlib import Path
 import time
 from .store import Store
 from .canary import CanaryRunner
+from .catalog import MODEL_CATALOG
 from .detect import detect_bursts, classify_tier
 from .dashboard import render_dashboard, render_landing
 from .public import write_public_snapshot
@@ -56,7 +57,8 @@ def tick(store: Store, adapters: list, runner: CanaryRunner | None = None,
             report.setdefault("canary_errors", []).append(str(exc))
 
     public_models = {}
-    models = set(store.models()) | {c.model for c in ephemeral_complaints}
+    models = (set(MODEL_CATALOG) | set(store.models())
+              | {c.model for c in ephemeral_complaints})
     for model in sorted(models):
         cs = store.complaints(model=model, since=since)
         cs.extend(c for c in ephemeral_complaints if c.model == model)

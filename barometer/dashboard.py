@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import Counter
 import html
 from datetime import datetime, timezone
-from .catalog import model_catalog_entry, variant_breakdown
+from .catalog import PREVIEW_DATA_NOTE, model_catalog_entry, variant_breakdown
 from .detect import Assessment, Complaint, cascade_clusters, classify, HOUR
 
 TIER_STYLE = {
@@ -62,7 +62,6 @@ def render_landing(
         1 for _, assessments in models.values()
         if max((a.tier for a in assessments), default=0) >= 2
     )
-    max_reports = max((len(complaints) for complaints, _ in models.values()), default=1)
     labs = sorted({model_catalog_entry(model)["lab"] for model in models})
 
     cards = []
@@ -89,17 +88,22 @@ def render_landing(
         ) or '<span class="chip muted">No categories yet</span>'
         terms = tuple(meta["recognised_terms"])
         breakdown = variant_breakdown(model, complaints)
-        breakdown_html = "".join(
-            f'<span class="model-chip{"" if item["explicit"] else " unspecified"}">'
-            f'{html.escape(item["label"])} <b>{item["reports"]}</b></span>'
-            for item in breakdown
-        ) or '<span class="model-chip unspecified">No reports yet</span>'
+        breakdown_parts = []
+        family_total = max(len(complaints), 1)
+        for item in breakdown:
+            tone = " monitored" if item["monitored"] else " residual"
+            bar_width = round((item["reports"] / family_total) * 100)
+            breakdown_parts.append(f"""
+              <div class="model-row{tone}">
+                <div class="model-row-head"><span>{html.escape(item['label'])}</span><b>{item['reports']}</b></div>
+                <div class="model-volume"><span style="width:{bar_width}%"></span></div>
+              </div>""")
+        breakdown_html = "".join(breakdown_parts)
         variant_terms = tuple(item["label"] for item in breakdown)
         search_terms = " ".join(
             (model, meta["label"], meta["lab"], *terms, *variant_terms)
         ).lower()
         latest = max((c.ts for c in complaints), default=0)
-        width = round((len(complaints) / max_reports) * 100) if max_reports else 0
         cards.append(f"""
         <article class="model-card" data-model="{html.escape(model)}"
           data-lab="{html.escape(meta['lab'].lower())}"
@@ -121,17 +125,14 @@ def render_landing(
               <strong>{len(complaints)}</strong>
               <span>reports in the last {window_days} days</span>
             </div>
-            <div class="volume" aria-label="Relative report volume">
-              <span style="width:{width}%"></span>
-            </div>
             <div class="meta-line">
               <span>{len(clusters)} independent after deduplication</span>
               <span>{source_text}</span>
             </div>
             <div class="chips">{category_html}</div>
             <div class="breakdown">
-              <span class="breakdown-label">Model breakdown</span>
-              <div class="model-chips">{breakdown_html}</div>
+              <span class="breakdown-label">Reports by monitored model</span>
+              <div class="model-bars">{breakdown_html}</div>
             </div>
           </div>
           <a class="detail-link" href="barometer_{html.escape(model)}.html"
@@ -176,9 +177,10 @@ h1{{font-size:clamp(42px,7vw,78px);line-height:.96;letter-spacing:-.055em;margin
 .weather-box{{background:linear-gradient(145deg,#151d27,#10161e);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow)}}
 .weather-box strong{{display:block;font-size:42px;line-height:1;margin:8px 0}}
 .weather-box span{{color:var(--muted);font-size:13px}}
-.stats-row{{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:72px}}
+.stats-row{{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px}}
 .stat{{padding:19px 21px;background:rgba(18,24,33,.72);border-right:1px solid var(--line)}} .stat:last-child{{border:0}}
 .stat b{{font-size:24px;display:block}} .stat span{{color:var(--muted);font-size:12px}}
+.data-note{{margin:0 0 66px;padding:11px 14px;border:1px solid #4a4028;background:#17150e;border-radius:10px;color:#aa9d7f;font-size:12px}} .data-note b{{color:#e8c879}}
 .section-head{{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:20px}}
 h2{{font-size:32px;letter-spacing:-.035em;margin:6px 0 0}} .updated{{color:var(--muted);font-size:12px;text-align:right}}
 .controls{{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:18px}}
@@ -196,11 +198,10 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 .status{{display:inline-flex;align-items:center;gap:7px;color:#c4ccd3;font-size:12px;white-space:nowrap}}
 .status i{{width:8px;height:8px;border-radius:50%;background:var(--status);box-shadow:0 0 0 4px color-mix(in srgb,var(--status) 14%,transparent)}}
 .report-line{{display:flex;align-items:baseline;gap:9px;margin:19px 0 8px}} .report-line strong{{font-size:34px;line-height:1}} .report-line span{{color:var(--muted)}}
-.volume{{height:7px;background:#0c1117;border-radius:99px;overflow:hidden}} .volume span{{display:block;height:100%;background:linear-gradient(90deg,#547d91,var(--blue));border-radius:inherit}}
 .meta-line{{display:flex;justify-content:space-between;gap:16px;color:var(--muted);font-size:12px;margin:9px 0 14px}}
 .chips{{display:flex;gap:7px;flex-wrap:wrap}} .chip{{background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:4px 9px;color:#aab4bf;font-size:11px}}
 .chip b{{color:var(--ink)}} .breakdown{{margin-top:14px}} .breakdown-label{{display:block;color:var(--faint);font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;margin-bottom:7px}}
-.model-chips{{display:flex;gap:7px;flex-wrap:wrap}} .model-chip{{border:1px solid #345064;background:#13202a;color:#b8d2de;border-radius:7px;padding:5px 9px;font-size:11px}} .model-chip b{{color:#fff;margin-left:3px}} .model-chip.unspecified{{border-color:var(--line);background:#10161e;color:var(--muted)}}
+.model-bars{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}} .model-row-head{{display:flex;justify-content:space-between;gap:12px;color:#bdd0da;font-size:11px;margin-bottom:4px}} .model-row-head b{{color:#fff}} .model-volume{{height:6px;background:#0a1016;border-radius:99px;overflow:hidden}} .model-volume span{{display:block;height:100%;min-width:0;background:linear-gradient(90deg,#527b8e,var(--blue));border-radius:inherit}} .model-row.residual .model-row-head{{color:var(--muted)}} .model-row.residual .model-volume span{{background:#58636d}}
 .detail-link{{align-self:center;text-decoration:none;border-left:1px solid var(--line);padding:22px 4px 22px 24px;color:#b7c1ca;white-space:nowrap}}
 .detail-link span{{color:var(--blue);margin-left:5px}} .detail-link:hover{{color:#fff}}
 .empty{{padding:40px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}}
@@ -210,7 +211,7 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 .method-card{{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}}
 .method-card b{{display:block;margin-bottom:5px}} .method-card span{{color:var(--muted);font-size:12px}}
 footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);font-size:12px}}
-@media(max-width:780px){{.hero{{grid-template-columns:1fr;padding-top:50px}}.stats-row{{grid-template-columns:1fr 1fr}}.stat:nth-child(2){{border-right:0}}.stat{{border-bottom:1px solid var(--line)}}.control-row{{grid-template-columns:1fr}}.model-card{{grid-template-columns:32px 1fr}}.detail-link{{grid-column:2;border-left:0;border-top:1px solid var(--line);padding:14px 0 0}}.meta-line,.section-head{{align-items:start;flex-direction:column}}.method{{grid-template-columns:1fr}}.method-grid{{grid-template-columns:1fr}}}}
+@media(max-width:780px){{.hero{{grid-template-columns:1fr;padding-top:50px}}.stats-row{{grid-template-columns:1fr 1fr}}.stat:nth-child(2){{border-right:0}}.stat{{border-bottom:1px solid var(--line)}}.control-row{{grid-template-columns:1fr}}.model-card{{grid-template-columns:32px 1fr}}.detail-link{{grid-column:2;border-left:0;border-top:1px solid var(--line);padding:14px 0 0}}.meta-line,.section-head{{align-items:start;flex-direction:column}}.model-bars{{grid-template-columns:1fr}}.method{{grid-template-columns:1fr}}.method-grid{{grid-template-columns:1fr}}}}
 </style></head><body>
 <header><div class="shell nav">
   <a class="brand" href="index.html"><span>☂</span> The Barometer</a>
@@ -231,6 +232,7 @@ footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);
     <div class="stat"><b>{len(models)}</b><span>model families tracked</span></div>
     <div class="stat"><b>{len(all_sources)}</b><span>active source types</span></div>
   </section>
+  <div class="data-note"><b>Preview data:</b> {html.escape(PREVIEW_DATA_NOTE)}</div>
   <section aria-labelledby="reported-heading">
     <div class="section-head"><div><div class="section-kicker">Live index</div><h2 id="reported-heading">Most reported right now</h2></div><div class="updated">Updated {updated}<br>Rolling {window_days}-day window</div></div>
     <div class="controls">
@@ -243,7 +245,7 @@ footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);
     </div>
     <div class="model-list" id="model-list">{''.join(cards)}</div>
     <div class="empty" id="empty-results" hidden>{html.escape(empty_message or 'No tracked models match those filters.')}</div>
-    <p class="family-note"><b>How model attribution works:</b> exact-model counts appear only when a report explicitly names one. Ambiguous reports remain in the visible unspecified bucket. Signal tiers are still assessed across the whole model family until each exact model has enough history for a meaningful baseline.</p>
+    <p class="family-note"><b>How model attribution works:</b> each monitored model has its own report-volume bar. Exact counts rise only when a report names that model or one of its declared aliases; Sol, Luna, and Terra map to GPT-5.6. Ambiguous and older-model reports remain visible in residual lanes. Signal tiers are still assessed across the whole lab family until each model has enough non-synthetic history for a meaningful baseline.</p>
   </section>
   <section class="method" id="method"><div><div class="section-kicker">How to read this</div><h2>Signal, not diagnosis.</h2></div><div><p>A high report count is attention, not proof. Barometer only escalates when reports survive duplicate collapse and gain meaningful independence across sources.</p><div class="method-grid"><div class="method-card"><b>Reports</b><span>Posts matching a model and complaint pattern.</span></div><div class="method-card"><b>Independent</b><span>Viral repeats and shared links collapsed first.</span></div><div class="method-card"><b>Corroborated</b><span>Multiple independent source types agree.</span></div></div></div></section>
 </main>

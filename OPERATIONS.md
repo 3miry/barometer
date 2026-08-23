@@ -97,6 +97,10 @@ independent sources.
 The scheduled task remains HN-only. Do not add `--observe-x` until the sample
 rate, budget, and desired observation period are explicitly approved.
 
+The source catalogue now also recognises xAI/Grok and newer exact-model names.
+This changed the future 60-read X allocation from three 20-post queries to four
+15-post queries; it did not make another paid request or alter the scheduler.
+
 Provider status feeds should be added later as a separate evidence class. A
 provider acknowledgment of an outage must be matched to the affected surface
 and complaint category before it can raise a claim tier.

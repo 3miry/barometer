@@ -71,6 +71,11 @@ X_POSTS = {
         "created_at": x_created_at(NOW - 1600),
         "text": "Gemini feels degraded and slow since the update",
     },
+    "grok": {
+        "id": "1900000000000000004",
+        "created_at": x_created_at(NOW - 1500),
+        "text": "Grok 4.6 feels broken and slow today",
+    },
 }
 
 REDDIT_USER_AGENT = "windows:barometer:v0.2 (by /u/test_operator)"
@@ -114,6 +119,15 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(
             infer_variant("gemini", "Gemini 2.5 Flash feels slow"),
             "gemini-2.5-flash",
+        )
+        self.assertEqual(infer_variant("gpt", "Sol feels slow"), "gpt-5.6")
+        self.assertEqual(infer_variant("gpt", "Luna feels slow"), "gpt-5.6")
+        self.assertEqual(infer_variant("gpt", "Terra feels slow"), "gpt-5.6")
+        self.assertEqual(
+            infer_variant("grok", "Grok 4.6 feels slow"), "grok-4.6")
+        self.assertEqual(
+            infer_variant("gemini", "Gemini Flash-Lite 3.7 feels slow"),
+            "gemini-3.7-flash-lite",
         )
         self.assertIsNone(
             infer_variant("claude", "Claude feels slow today"),
@@ -172,6 +186,8 @@ class AdapterTests(unittest.TestCase):
 
     def test_routing(self):
         self.assertEqual(route_model("anthropic's sonnet is acting up"), "claude")
+        self.assertEqual(route_model("Sol is acting up"), "gpt")
+        self.assertEqual(route_model("Grok 4.6 is acting up"), "grok")
         self.assertIsNone(route_model("my toaster is acting up"))
 
     def test_x_is_capped_cursor_based_and_reports_cost(self):
@@ -184,7 +200,8 @@ class AdapterTests(unittest.TestCase):
                 calls.append(params)
                 query = params["query"][0]
                 model = "claude" if "Claude" in query else (
-                    "gpt" if "ChatGPT" in query else "gemini")
+                    "gpt" if "ChatGPT" in query else (
+                        "grok" if "Grok" in query else "gemini"))
                 if "since_id" in params:
                     return {"data": []}
                 return {"data": [X_POSTS[model]]}
@@ -200,21 +217,21 @@ class AdapterTests(unittest.TestCase):
                 )
                 complaints = adapter.fetch(NOW - 86400)
                 self.assertEqual(
-                    {c.model for c in complaints}, {"claude", "gemini"})
+                    {c.model for c in complaints}, {"claude", "gemini", "grok"})
                 self.assertEqual(
                     complaints[0].seed_url, "https://example.com/seed")
-                self.assertEqual(store.tap_usage("2026-06-12", "x"), 3)
+                self.assertEqual(store.tap_usage("2026-06-12", "x"), 4)
                 usage = adapter.usage_report()
-                self.assertEqual(usage["candidate_posts"], 3)
-                self.assertEqual(usage["accepted_complaints"], 2)
-                self.assertEqual(usage["estimated_cost_usd_upper_bound"], 0.015)
+                self.assertEqual(usage["candidate_posts"], 4)
+                self.assertEqual(usage["accepted_complaints"], 3)
+                self.assertEqual(usage["estimated_cost_usd_upper_bound"], 0.02)
 
                 # Cursors suppress old posts. Empty successful responses refund
                 # their reservation, so the conservative daily ledger stays put.
                 self.assertEqual(adapter.fetch(NOW - 86400), [])
-                self.assertEqual(store.tap_usage("2026-06-12", "x"), 3)
-                self.assertTrue(all("since_id" in p for p in calls[3:]))
-                self.assertTrue(all(p["max_results"] == ["20"] for p in calls))
+                self.assertEqual(store.tap_usage("2026-06-12", "x"), 4)
+                self.assertTrue(all("since_id" in p for p in calls[4:]))
+                self.assertTrue(all(p["max_results"] == ["15"] for p in calls))
 
     def test_x_ambiguous_failure_consumes_reserved_allowance(self):
         with tempfile.TemporaryDirectory() as d:
@@ -393,16 +410,15 @@ class TickTests(unittest.TestCase):
             self.assertEqual(payload["models"]["claude"]["reports"], 1)
             self.assertEqual(payload["models"]["claude"]["lab"], "Anthropic")
             self.assertIn(
-                "Sonnet", payload["models"]["claude"]["recognised_terms"])
+                "Sonnet 5", payload["models"]["claude"]["recognised_terms"])
+            breakdown = payload["models"]["claude"]["model_breakdown"]
             self.assertEqual(
-                payload["models"]["claude"]["model_breakdown"],
-                [{
-                    "explicit": False,
-                    "key": "unspecified",
-                    "label": "Unspecified Claude model",
-                    "reports": 1,
-                }],
+                [item["label"] for item in breakdown[:4]],
+                ["Fable 5", "Opus 5", "Sonnet 5", "Opus 4.8"],
             )
+            self.assertEqual(breakdown[-1]["key"], "unspecified")
+            self.assertEqual(breakdown[-1]["reports"], 1)
+            self.assertIn("synthetic", payload["data_quality_note"])
             with open(history, encoding="utf-8") as handle:
                 public_history = handle.read()
             self.assertNotIn("SECRET_RAW_WORDS", public_history)
@@ -451,8 +467,9 @@ class TickTests(unittest.TestCase):
             self.assertIn('data-lab-filter="openai"', page)
             self.assertIn("Sonnet", page)
             self.assertIn("GPT-5", page)
-            self.assertIn("Claude Opus 5", page)
+            self.assertIn("Opus 5", page)
             self.assertIn("Unspecified Claude model", page)
+            self.assertIn("Preview data", page)
             self.assertNotIn("PRIVATE ONE", page)
             self.assertNotIn("PRIVATE GPT TEXT", page)
 

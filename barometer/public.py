@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import tempfile
 
-from .catalog import model_catalog_entry, variant_breakdown
+from .catalog import PREVIEW_DATA_NOTE, model_catalog_entry, variant_breakdown
 from .detect import Assessment, Complaint, cascade_clusters, classify
 
 
@@ -17,11 +17,9 @@ def _iso(ts: float) -> str:
 
 
 def _model_summary(
-        complaints: list[Complaint], assessments: list[Assessment]) -> dict:
-    model = complaints[0].model if complaints else None
-    meta = model_catalog_entry(model) if model else {
-        "label": "Unknown", "lab": "Other", "recognised_terms": (),
-    }
+        model: str, complaints: list[Complaint],
+        assessments: list[Assessment]) -> dict:
+    meta = model_catalog_entry(model)
     categories = Counter(
         category
         for complaint in complaints
@@ -33,8 +31,7 @@ def _model_summary(
         "label": meta["label"],
         "lab": meta["lab"],
         "recognised_terms": list(meta["recognised_terms"]),
-        "model_breakdown": variant_breakdown(model, complaints)
-        if model else [],
+        "model_breakdown": variant_breakdown(model, complaints),
         "reports": len(complaints),
         "independent_reports": len(cascade_clusters(complaints)),
         "latest_report_at": _iso(max(c.ts for c in complaints))
@@ -96,8 +93,9 @@ def write_public_snapshot(
         "schema_version": 1,
         "generated_at": _iso(generated_at),
         "window_days": window_days,
+        "data_quality_note": PREVIEW_DATA_NOTE,
         "models": {
-            model: _model_summary(complaints, assessments)
+            model: _model_summary(model, complaints, assessments)
             for model, (complaints, assessments) in sorted(models.items())
         },
     }

@@ -20,17 +20,23 @@ X_POST_READ_USD = 0.005
 X_RECENT_SEARCH_URL = "https://api.x.com/2/tweets/search/recent"
 X_QUERIES = {
     "claude": (
-        '(Claude OR Anthropic OR Sonnet OR Opus) '
+        '(Claude OR Anthropic OR "Fable 5" OR "Opus 5" OR "Sonnet 5" OR "Opus 4.8") '
         '(worse OR degraded OR broken OR slow OR nerfed OR lazy OR dumb '
         'OR "off today" OR "anyone else") lang:en -is:retweet'
     ),
     "gpt": (
-        '(ChatGPT OR "GPT-5" OR "GPT-4" OR OpenAI) '
+        '(ChatGPT OR "GPT-5.5" OR "GPT-5.6" OR OpenAI OR Sol OR Luna OR Terra) '
         '(worse OR degraded OR broken OR slow OR nerfed OR lazy OR dumb '
         'OR "off today" OR "anyone else") lang:en -is:retweet'
     ),
     "gemini": (
-        '(Gemini OR "Google AI" OR Bard) '
+        '(Gemini OR "Gemini 3.1 Pro" OR "Gemini Flash 3.5" '
+        'OR "Gemini Flash-Lite 3.7" OR "Google AI") '
+        '(worse OR degraded OR broken OR slow OR nerfed OR lazy OR dumb '
+        'OR "off today" OR "anyone else") lang:en -is:retweet'
+    ),
+    "grok": (
+        '(Grok OR xAI OR "Grok 4.5" OR "Grok 4.6") '
         '(worse OR degraded OR broken OR slow OR nerfed OR lazy OR dumb '
         'OR "off today" OR "anyone else") lang:en -is:retweet'
     ),
@@ -85,12 +91,15 @@ MODEL_KEYWORDS = {
     "claude": ["claude", "anthropic", "sonnet", "opus", "haiku", "fable"],
     "gpt":    ["chatgpt", "gpt-", "gpt4", "gpt5", "openai", " 4o", "o3", "o4"],
     "gemini": ["gemini", "google ai", "bard"],
+    "grok":   ["grok", "xai", "x.ai"],
 }
 COMPLAINT_HINTS = ["worse", "nerf", "dumb", "lazy", "slow", "degrad", "refus",
                    "shorter", "off today", "quality", "stupid", "broken",
                    "downgrade", "since the update", "anyone else"]
 
 def route_model(text: str) -> str | None:
+    if re.search(r"\b(?:Sol|Luna|Terra)\b", text):
+        return "gpt"
     t = text.lower()
     for model, kws in MODEL_KEYWORDS.items():
         if any(k in t for k in kws):
@@ -229,9 +238,10 @@ class RedditAdapter:
 class HNAdapter:
     """Hacker News via the Algolia search API. Free, clean, no auth."""
     def __init__(self, queries: list[str] | None = None, transport=live_transport):
-        self.queries = queries or ["claude worse", "chatgpt worse",
-                                   "gpt nerfed", "claude degraded",
-                                   "gemini worse"]
+        self.queries = queries or [
+            "claude worse", "fable 5 worse", "chatgpt worse",
+            "gpt-5.6 degraded", "gemini worse", "grok worse",
+        ]
         self.transport = transport
 
     def fetch(self, since: float) -> list[Complaint]:
@@ -402,6 +412,8 @@ class XAdapter:
                     self.errors.append(f"{model}: invalid timestamp for post {post_id}")
                     continue
                 routed_model = route_model(text)
+                if routed_model is None and infer_variant(model, text):
+                    routed_model = model
                 if ts < since or not routed_model or not looks_like_complaint(text):
                     continue
                 out.append(Complaint(

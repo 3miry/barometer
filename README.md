@@ -51,17 +51,20 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 
 | Public family | Lab | Recognised mentions |
 | --- | --- | --- |
-| Claude | Anthropic | Claude, Sonnet, Opus, Haiku |
-| GPT / ChatGPT | OpenAI | ChatGPT, GPT-5, GPT-4, GPT-4o, o3, o4 |
-| Gemini | Google | Gemini, Google AI, Bard |
+| Claude | Anthropic | Fable 5, Opus 5, Sonnet 5, Opus 4.8 |
+| GPT / ChatGPT | OpenAI | GPT-5.5; GPT-5.6 including Sol, Luna, and Terra aliases |
+| Grok | xAI | Grok 4.5, Grok 4.6 |
+| Gemini | Google | Gemini 3.1 Pro, Gemini Flash 3.5, Gemini Flash-Lite 3.7 |
 
 Detection still establishes its signal baseline at family level, but the public
 landing page breaks report volume down by exact model whenever a post names one
 explicitly. Ambiguous posts remain in a visible unspecified bucket rather than
-being guessed into a variant.
+being guessed into a variant. Monitored models remain visible at zero so absence
+of reports is distinguishable from absence of tracking.
 
 Future presentation direction: an optional, reduced-motion-aware ambient
-weather layer driven by signal and complaint-category tags. It remains
+weather layer driven by signal and complaint-category tags, potentially using a
+word-cloud or weather-map treatment rather than fixed pills. It remains
 decorative and must never make the evidence look stronger than it is.
 
 ## Pipeline (added overnight)
@@ -121,11 +124,12 @@ environment:
 
 `python run_barometer.py --observe-hn --observe-x`
 
-The default allowance is at most 60 returned posts per UTC day: 20 for each of
-Claude, GPT, and Gemini. At X's published price on 23 August 2026 of $0.005 per
-post read, that is an estimated upper bound of $0.30/day. Set a lower or higher
-hard allowance with `--x-daily-read-limit`; the X Developer Console spending
-limit remains the authoritative outer guard.
+The default allowance is at most 60 returned posts per UTC day, shared fairly
+across Claude, GPT, Gemini, and Grok queries (currently up to 15 each). At X's
+published price on 23 August 2026 of $0.005 per post read, that remains an
+estimated upper bound of $0.30/day. Set a lower or higher hard allowance with
+`--x-daily-read-limit`; the X Developer Console spending limit remains the
+authoritative outer guard.
 
 Barometer persists a `since_id` cursor per query and reports candidate posts,
 accepted complaints, saturated queries, and an upper-bound cost in

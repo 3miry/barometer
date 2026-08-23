@@ -6,9 +6,9 @@
   The optional OpenAI transport uses `OPENAI_API_KEY` from the process
   environment.
 - SQLite connections close deterministically on Windows.
-- All 32 tests pass without network access or API spend.
-- The folder is a Git repository on `main`; the initial commit preserves the
-  July database and dashboards as provenance.
+- The full test suite passes without network access or API spend.
+- The public `main` history contains source and aggregate demonstration output,
+  not runtime databases; the pre-public development history remains local.
 - Running `python run_barometer.py` is offline by default. Network taps and the
   paid canary require explicit flags.
 
@@ -28,9 +28,10 @@ corroboration:
 1. The API returns log probabilities for generated output tokens. The database
    stores only their probabilities, not the token identities. If the model emits
    different tokens, positional comparison can report false drift.
-2. Social routing combines ChatGPT, OpenAI, and several GPT model names into one
-   `gpt` bucket, while the canary probes one pinned API snapshot. Product-layer
-   ChatGPT change and API-snapshot change are not the same measured system.
+2. Social routing now records explicit GPT-5.5/GPT-5.6 attribution when named,
+   but detection baselines are still family-level and the canary probes one
+   pinned API snapshot. Product-layer ChatGPT change and API-snapshot change
+   are not the same measured system.
 3. `system_fingerprint` identifies backend configuration. A changed fingerprint
    is useful context, but is not by itself provider acknowledgment of the cause
    of a user-visible change.
