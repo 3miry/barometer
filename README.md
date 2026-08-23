@@ -62,10 +62,11 @@ explicitly. Ambiguous posts remain in a visible unspecified bucket rather than
 being guessed into a variant. Monitored models remain visible at zero so absence
 of reports is distinguishable from absence of tracking.
 
-Future presentation direction: an optional, reduced-motion-aware ambient
-weather layer driven by signal and complaint-category tags, potentially using a
-word-cloud or weather-map treatment rather than fixed pills. It remains
-decorative and must never make the evidence look stronger than it is.
+Complaint categories now form a small cloud-shaped word graphic on each family
+card; word size reflects report frequency, while the underlying counts remain
+available to sighted and screen-reader users. Its subtle drift respects reduced
+motion preferences. A richer ambient weather layer remains a future decorative
+option and must never make the evidence look stronger than it is.
 
 ## Pipeline (added overnight)
 - `store.py` — SQLite state: complaint dedup on stable id, readings, events.

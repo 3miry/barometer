@@ -82,10 +82,28 @@ def render_landing(
             f"{html.escape(source.upper())} {count}"
             for source, count in sorted(sources.items())
         ) or "No source data"
-        category_html = "".join(
-            f'<span class="chip">{html.escape(category)} <b>{count}</b></span>'
+        category_label = ", ".join(
+            f"{category} {count}" for category, count in category_items
+        ) or "No report themes yet"
+        max_category_count = max((count for _, count in category_items), default=1)
+        category_words = "".join(
+            f'<span class="cloud-word" style="--word-size:'
+            f'{12 + round((count / max_category_count) * 9)}px">'
+            f'{html.escape(category)} <b>{count}</b></span>'
             for category, count in category_items
-        ) or '<span class="chip muted">No categories yet</span>'
+        ) or '<span class="cloud-word clear">clear skies</span>'
+        category_html = f"""
+          <div class="cloud-heading">
+            <span class="breakdown-label">Report weather</span>
+            <span class="cloud-key">word size = report frequency</span>
+          </div>
+          <div class="category-cloud" role="img"
+            aria-label="Reported themes: {html.escape(category_label, quote=True)}">
+            <svg class="cloud-form" viewBox="0 0 410 112" aria-hidden="true">
+              <path d="M72 104C36 104 12 87 12 64c0-21 21-39 51-42C76 7 96 0 120 0c32 0 59 17 70 43 14-12 32-19 53-19 36 0 66 23 73 55 8-5 19-7 30-7 29 0 52 14 52 32H72Z"/>
+            </svg>
+            <div class="cloud-words" aria-hidden="true">{category_words}</div>
+          </div>"""
         terms = tuple(meta["recognised_terms"])
         breakdown = variant_breakdown(model, complaints)
         breakdown_parts = []
@@ -105,7 +123,8 @@ def render_landing(
         ).lower()
         latest = max((c.ts for c in complaints), default=0)
         cards.append(f"""
-        <article class="model-card" data-model="{html.escape(model)}"
+        <article class="model-card" style="--status-colour:{status_colour}"
+          data-model="{html.escape(model)}"
           data-lab="{html.escape(meta['lab'].lower())}"
           data-status="{status_key}" data-reports="{len(complaints)}"
           data-independent="{len(clusters)}" data-latest="{latest:.0f}"
@@ -117,7 +136,7 @@ def render_landing(
                 <div class="lab">{html.escape(meta['lab'])}</div>
                 <h3>{html.escape(meta['label'])}</h3>
               </div>
-              <span class="status" style="--status:{status_colour}">
+              <span class="status">
                 <i></i>{html.escape(status_label)}
               </span>
             </div>
@@ -129,7 +148,7 @@ def render_landing(
               <span>{len(clusters)} independent after deduplication</span>
               <span>{source_text}</span>
             </div>
-            <div class="chips">{category_html}</div>
+            <div class="category-weather">{category_html}</div>
             <div class="breakdown">
               <span class="breakdown-label">Reports by monitored model</span>
               <div class="model-bars">{breakdown_html}</div>
@@ -196,11 +215,14 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 .model-card[hidden]{{display:none}} .rank{{color:#52606d;font:700 15px/1 ui-monospace,monospace;padding-top:6px}}
 .card-heading{{display:flex;justify-content:space-between;align-items:start;gap:18px}} h3{{font-size:26px;letter-spacing:-.025em;margin:2px 0 0}}
 .status{{display:inline-flex;align-items:center;gap:7px;color:#c4ccd3;font-size:12px;white-space:nowrap}}
-.status i{{width:8px;height:8px;border-radius:50%;background:var(--status);box-shadow:0 0 0 4px color-mix(in srgb,var(--status) 14%,transparent)}}
+.status i{{width:8px;height:8px;border-radius:50%;background:var(--status-colour);box-shadow:0 0 0 4px color-mix(in srgb,var(--status-colour) 14%,transparent)}}
 .report-line{{display:flex;align-items:baseline;gap:9px;margin:19px 0 8px}} .report-line strong{{font-size:34px;line-height:1}} .report-line span{{color:var(--muted)}}
 .meta-line{{display:flex;justify-content:space-between;gap:16px;color:var(--muted);font-size:12px;margin:9px 0 14px}}
-.chips{{display:flex;gap:7px;flex-wrap:wrap}} .chip{{background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:4px 9px;color:#aab4bf;font-size:11px}}
-.chip b{{color:var(--ink)}} .breakdown{{margin-top:14px}} .breakdown-label{{display:block;color:var(--faint);font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;margin-bottom:7px}}
+.category-weather{{width:min(430px,100%);margin:15px 0 2px}} .cloud-heading{{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:-2px}} .cloud-key{{color:var(--faint);font-size:10px}}
+.category-cloud{{position:relative;width:100%;aspect-ratio:3.66/1;isolation:isolate;filter:drop-shadow(0 12px 15px rgba(0,0,0,.18));animation:cloud-drift 11s ease-in-out infinite alternate}} .cloud-form{{position:absolute;inset:0;width:100%;height:100%;overflow:visible}} .cloud-form path{{fill:color-mix(in srgb,var(--status-colour) 10%,#17212b);stroke:color-mix(in srgb,var(--status-colour) 31%,#33404b);stroke-width:1.2}}
+.cloud-words{{position:absolute;inset:0;color:#c5d2da;text-shadow:0 1px 8px rgba(0,0,0,.5)}} .cloud-word{{position:absolute;font-size:var(--word-size,12px);line-height:1;font-weight:650;letter-spacing:-.015em;white-space:nowrap;transform:translate(-50%,-50%)}} .cloud-word b{{font-size:.52em;color:var(--status-colour);vertical-align:super;margin-left:2px}} .cloud-word:nth-child(1){{left:47%;top:42%}} .cloud-word:nth-child(2){{left:27%;top:66%}} .cloud-word:nth-child(3){{left:70%;top:63%}} .cloud-word:nth-child(4){{left:49%;top:79%}} .cloud-word.clear{{left:50%;top:62%;color:var(--muted);font-weight:500;font-style:italic}}
+@keyframes cloud-drift{{from{{transform:translate3d(-2px,1px,0)}}to{{transform:translate3d(3px,-1px,0)}}}}
+.breakdown{{margin-top:14px}} .breakdown-label{{display:block;color:var(--faint);font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;margin-bottom:7px}}
 .model-bars{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}} .model-row-head{{display:flex;justify-content:space-between;gap:12px;color:#bdd0da;font-size:11px;margin-bottom:4px}} .model-row-head b{{color:#fff}} .model-volume{{height:6px;background:#0a1016;border-radius:99px;overflow:hidden}} .model-volume span{{display:block;height:100%;min-width:0;background:linear-gradient(90deg,#527b8e,var(--blue));border-radius:inherit}} .model-row.residual .model-row-head{{color:var(--muted)}} .model-row.residual .model-volume span{{background:#58636d}}
 .detail-link{{align-self:center;text-decoration:none;border-left:1px solid var(--line);padding:22px 4px 22px 24px;color:#b7c1ca;white-space:nowrap}}
 .detail-link span{{color:var(--blue);margin-left:5px}} .detail-link:hover{{color:#fff}}
@@ -211,6 +233,7 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 .method-card{{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}}
 .method-card b{{display:block;margin-bottom:5px}} .method-card span{{color:var(--muted);font-size:12px}}
 footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);font-size:12px}}
+@media(prefers-reduced-motion:reduce){{.category-cloud{{animation:none}}}}
 @media(max-width:780px){{.hero{{grid-template-columns:1fr;padding-top:50px}}.stats-row{{grid-template-columns:1fr 1fr}}.stat:nth-child(2){{border-right:0}}.stat{{border-bottom:1px solid var(--line)}}.control-row{{grid-template-columns:1fr}}.model-card{{grid-template-columns:32px 1fr}}.detail-link{{grid-column:2;border-left:0;border-top:1px solid var(--line);padding:14px 0 0}}.meta-line,.section-head{{align-items:start;flex-direction:column}}.model-bars{{grid-template-columns:1fr}}.method{{grid-template-columns:1fr}}.method-grid{{grid-template-columns:1fr}}}}
 </style></head><body>
 <header><div class="shell nav">

@@ -470,6 +470,10 @@ class TickTests(unittest.TestCase):
             self.assertIn("Opus 5", page)
             self.assertIn("Unspecified Claude model", page)
             self.assertIn("Preview data", page)
+            self.assertIn("Report weather", page)
+            self.assertIn('class="category-cloud" role="img"', page)
+            self.assertIn("word size = report frequency", page)
+            self.assertIn("prefers-reduced-motion:reduce", page)
             self.assertNotIn("PRIVATE ONE", page)
             self.assertNotIn("PRIVATE GPT TEXT", page)
 
