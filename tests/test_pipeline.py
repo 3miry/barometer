@@ -337,7 +337,9 @@ class TickTests(unittest.TestCase):
                     for c in store.complaints()))
                 with open(os.path.join(d, "barometer_claude.html"),
                           encoding="utf-8") as handle:
-                    self.assertIn("reddit/testsub × 1", handle.read())
+                    detail = handle.read()
+                self.assertIn('"name":"REDDIT","count":1', detail)
+                self.assertNotIn("reddit/testsub", detail)
                 # idempotence: a second tick an hour later adds nothing, breaks nothing
                 report2 = tick(store, adapters, runner, out_dir=d, now=NOW + 3600)
                 self.assertEqual(report2["new_complaints"], 0)
@@ -419,6 +421,15 @@ class TickTests(unittest.TestCase):
             self.assertEqual(breakdown[-1]["key"], "unspecified")
             self.assertEqual(breakdown[-1]["reports"], 1)
             self.assertIn("synthetic", payload["data_quality_note"])
+            self.assertEqual(payload["default_display_window"], "now")
+            self.assertEqual(
+                payload["models"]["claude"]["windows"]["now"]["reports"],
+                0,
+            )
+            self.assertEqual(
+                payload["models"]["claude"]["windows"]["7d"]["reports"],
+                1,
+            )
             with open(history, encoding="utf-8") as handle:
                 public_history = handle.read()
             self.assertNotIn("SECRET_RAW_WORDS", public_history)
@@ -429,7 +440,10 @@ class TickTests(unittest.TestCase):
                 public_html = handle.read()
             self.assertNotIn("SECRET_RAW_WORDS", public_html)
             self.assertNotIn("private-test", public_html)
-            self.assertIn("source mix: hn × 1", public_html)
+            self.assertIn('"name":"HN","count":1', public_html)
+            self.assertIn('"default_window":"21d"', public_html)
+            self.assertIn('data-window="21d"', public_html)
+            self.assertIn('data-variant="claude-opus-5"', public_html)
             with open(os.path.join(d, "public", "index.html"),
                       encoding="utf-8") as handle:
                 landing_html = handle.read()
@@ -437,6 +451,8 @@ class TickTests(unittest.TestCase):
             self.assertNotIn("private-test", landing_html)
             self.assertIn("Most reported right now", landing_html)
             self.assertIn("Search by lab, family, or model", landing_html)
+            self.assertIn('data-display-window="now"', landing_html)
+            self.assertIn('data-window-pane="21d"', landing_html)
             with open(os.path.join(d, "public", "report.html"),
                       encoding="utf-8") as handle:
                 report_form = handle.read()
@@ -444,6 +460,7 @@ class TickTests(unittest.TestCase):
             self.assertNotIn("private-test", report_form)
             self.assertIn("Private moderation boundary", report_form)
             self.assertIn('name="model_name"', report_form)
+            self.assertIn("URLSearchParams(location.search)", report_form)
 
     def test_landing_ranks_reports_and_exposes_family_filters(self):
         with tempfile.TemporaryDirectory() as d:
@@ -478,6 +495,10 @@ class TickTests(unittest.TestCase):
             self.assertIn("weather-rain", page)
             self.assertIn("word size = report frequency", page)
             self.assertIn("prefers-reduced-motion:reduce", page)
+            self.assertIn('data-display-window="now"', page)
+            self.assertIn('data-display-window="7d"', page)
+            self.assertIn('data-display-window="21d"', page)
+            self.assertIn('[hidden]{display:none!important}', page)
             self.assertNotIn("PRIVATE ONE", page)
             self.assertNotIn("PRIVATE GPT TEXT", page)
 

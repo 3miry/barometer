@@ -11,6 +11,8 @@ import tempfile
 from .catalog import PREVIEW_DATA_NOTE, model_catalog_entry, variant_breakdown
 from .detect import Assessment, Complaint, cascade_clusters, classify
 
+PUBLIC_WINDOWS = {"now": 86400, "7d": 7 * 86400, "21d": 21 * 86400}
+
 
 def _iso(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
@@ -54,6 +56,24 @@ def _model_summary(
     }
 
 
+def _model_summary_with_windows(
+        model: str, complaints: list[Complaint], assessments: list[Assessment],
+        generated_at: float) -> dict:
+    summary = _model_summary(model, complaints, assessments)
+    summary["windows"] = {}
+    for key, seconds in PUBLIC_WINDOWS.items():
+        cutoff = generated_at - seconds
+        current = [complaint for complaint in complaints if complaint.ts >= cutoff]
+        active_assessments = [
+            assessment for assessment in assessments
+            if assessment.burst.end >= cutoff
+        ]
+        summary["windows"][key] = _model_summary(
+            model, current, active_assessments,
+        )
+    return summary
+
+
 def _atomic_json(path: Path, payload: dict) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -93,9 +113,13 @@ def write_public_snapshot(
         "schema_version": 1,
         "generated_at": _iso(generated_at),
         "window_days": window_days,
+        "default_display_window": "now",
+        "display_windows_seconds": PUBLIC_WINDOWS,
         "data_quality_note": PREVIEW_DATA_NOTE,
         "models": {
-            model: _model_summary(model, complaints, assessments)
+            model: _model_summary_with_windows(
+                model, complaints, assessments, generated_at,
+            )
             for model, (complaints, assessments) in sorted(models.items())
         },
     }

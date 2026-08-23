@@ -1,8 +1,11 @@
 from __future__ import annotations
 from collections import Counter
 import html
+import json
 from datetime import datetime, timezone
-from .catalog import PREVIEW_DATA_NOTE, model_catalog_entry, variant_breakdown
+from .catalog import (
+    PREVIEW_DATA_NOTE, infer_variant, model_catalog_entry, variant_breakdown,
+)
 from .detect import Assessment, Complaint, cascade_clusters, classify, HOUR
 
 TIER_STYLE = {
@@ -67,6 +70,73 @@ CLOUD_FILLER_WORDS = (
     "output", "context", "maybe", "usually",
 )
 
+DISPLAY_WINDOWS = (
+    ("now", "Now", "24 hours", 24 * HOUR),
+    ("7d", "7 days", "7 days", 7 * 24 * HOUR),
+    ("21d", "21 days", "21 days", 21 * 24 * HOUR),
+)
+
+
+def _window_summary(
+        model: str, complaints: list[Complaint], assessments: list[Assessment],
+        generated_at: float, seconds: float) -> dict:
+    cutoff = generated_at - seconds
+    current = [complaint for complaint in complaints if complaint.ts >= cutoff]
+    active_assessments = [
+        assessment for assessment in assessments
+        if assessment.burst.end >= cutoff
+    ]
+    status_key, status_label, status_colour = _activity_status(active_assessments)
+    categories = Counter(
+        category
+        for complaint in current
+        for category in classify(complaint.text)
+    )
+    sources = Counter(c.source.split("/", 1)[0] for c in current)
+    weather_key, weather_label = _weather_style(status_key, categories)
+    return {
+        "complaints": current,
+        "reports": len(current),
+        "independent": len(cascade_clusters(current)),
+        "latest": max((complaint.ts for complaint in current), default=0),
+        "categories": categories,
+        "sources": sources,
+        "breakdown": variant_breakdown(model, current),
+        "status_key": status_key,
+        "status_label": status_label,
+        "status_colour": status_colour,
+        "weather_key": weather_key,
+        "weather_label": weather_label,
+    }
+
+
+def _category_cloud(category_items: list[tuple[str, int]], weather_label: str) -> str:
+    category_label = ", ".join(
+        f"{category} {count}" for category, count in category_items
+    ) or "No report themes yet"
+    max_category_count = max((count for _, count in category_items), default=1)
+    category_words = "".join(
+        f'<span class="cloud-word" style="--word-size:'
+        f'{12 + round((count / max_category_count) * 9)}px">'
+        f'{html.escape(category)} <b>{count}</b></span>'
+        for category, count in category_items
+    ) or '<span class="cloud-word clear">clear skies</span>'
+    filler_words = "".join(
+        f"<span>{html.escape(word)}</span>"
+        for _ in range(8)
+        for word in CLOUD_FILLER_WORDS
+    )
+    return f"""
+      <div class="cloud-heading">
+        <span class="breakdown-label">Report weather · {html.escape(weather_label)}</span>
+        <span class="cloud-key">word size = report frequency</span>
+      </div>
+      <div class="category-cloud" role="img"
+        aria-label="Reported themes: {html.escape(category_label, quote=True)}">
+        <div class="cloud-filler" aria-hidden="true">{filler_words}</div>
+        <div class="cloud-words" aria-hidden="true">{category_words}</div>
+      </div>"""
+
 
 def render_landing(
         models: dict[str, tuple[list[Complaint], list[Assessment]]],
@@ -81,87 +151,124 @@ def render_landing(
         for complaints, _ in models.values()
         for complaint in complaints
     ]
-    total_reports = len(all_complaints)
-    total_independent = sum(
-        len(cascade_clusters(complaints))
-        for complaints, _ in models.values()
-    )
-    all_sources = Counter(c.source.split("/", 1)[0] for c in all_complaints)
-    corroborated = sum(
-        1 for _, assessments in models.values()
-        if max((a.tier for a in assessments), default=0) >= 2
-    )
+    fleet_windows = {}
+    for key, _, _, seconds in DISPLAY_WINDOWS:
+        cutoff = generated_at - seconds
+        window_complaints = [c for c in all_complaints if c.ts >= cutoff]
+        window_sources = Counter(
+            c.source.split("/", 1)[0] for c in window_complaints
+        )
+        window_independent = sum(
+            len(cascade_clusters([
+                complaint for complaint in complaints
+                if complaint.ts >= cutoff
+            ]))
+            for complaints, _ in models.values()
+        )
+        window_corroborated = sum(
+            1 for _, assessments in models.values()
+            if max((
+                assessment.tier for assessment in assessments
+                if assessment.burst.end >= cutoff
+            ), default=0) >= 2
+        )
+        fleet_windows[key] = {
+            "reports": len(window_complaints),
+            "independent": window_independent,
+            "sources": window_sources,
+            "corroborated": window_corroborated,
+        }
+    initial_fleet = fleet_windows["now"]
     labs = sorted({model_catalog_entry(model)["lab"] for model in models})
 
     cards = []
     for rank, (model, (complaints, assessments)) in enumerate(ranked, start=1):
         meta = model_catalog_entry(model)
-        clusters = cascade_clusters(complaints)
-        status_key, status_label, status_colour = _activity_status(assessments)
-        sources = Counter(c.source.split("/", 1)[0] for c in complaints)
-        categories = Counter(
-            category
-            for complaint in complaints
-            for category in classify(complaint.text)
-        )
-        category_items = sorted(
-            categories.items(), key=lambda item: (item[0] == "other", -item[1], item[0])
-        )[:4]
-        weather_key, weather_label = _weather_style(status_key, categories)
-        source_text = " · ".join(
-            f"{html.escape(source.upper())} {count}"
-            for source, count in sorted(sources.items())
-        ) or "No source data"
-        category_label = ", ".join(
-            f"{category} {count}" for category, count in category_items
-        ) or "No report themes yet"
-        max_category_count = max((count for _, count in category_items), default=1)
-        category_words = "".join(
-            f'<span class="cloud-word" style="--word-size:'
-            f'{12 + round((count / max_category_count) * 9)}px">'
-            f'{html.escape(category)} <b>{count}</b></span>'
-            for category, count in category_items
-        ) or '<span class="cloud-word clear">clear skies</span>'
-        filler_words = "".join(
-            f"<span>{html.escape(word)}</span>"
-            for _ in range(8)
-            for word in CLOUD_FILLER_WORDS
-        )
-        category_html = f"""
-          <div class="cloud-heading">
-            <span class="breakdown-label">Report weather · {html.escape(weather_label)}</span>
-            <span class="cloud-key">word size = report frequency</span>
-          </div>
-          <div class="category-cloud" role="img"
-            aria-label="Reported themes: {html.escape(category_label, quote=True)}">
-            <div class="cloud-filler" aria-hidden="true">{filler_words}</div>
-            <div class="cloud-words" aria-hidden="true">{category_words}</div>
-          </div>"""
-        terms = tuple(meta["recognised_terms"])
-        breakdown = variant_breakdown(model, complaints)
-        breakdown_parts = []
-        family_total = max(len(complaints), 1)
-        for item in breakdown:
-            tone = " monitored" if item["monitored"] else " residual"
-            bar_width = round((item["reports"] / family_total) * 100)
-            breakdown_parts.append(f"""
-              <div class="model-row{tone}">
-                <div class="model-row-head"><span>{html.escape(item['label'])}</span><b>{item['reports']}</b></div>
-                <div class="model-volume"><span style="width:{bar_width}%"></span></div>
+        windows = {
+            key: _window_summary(
+                model, complaints, assessments, generated_at, seconds,
+            )
+            for key, _, _, seconds in DISPLAY_WINDOWS
+        }
+        baseline_daily = windows["21d"]["reports"] / 21
+        pane_parts = []
+        data_attributes = []
+        for key, _, range_label, seconds in DISPLAY_WINDOWS:
+            summary = windows[key]
+            source_text = " · ".join(
+                f"{html.escape(source.upper())} {count}"
+                for source, count in sorted(summary["sources"].items())
+            ) or "No source data"
+            category_items = sorted(
+                summary["categories"].items(),
+                key=lambda item: (item[0] == "other", -item[1], item[0]),
+            )[:4]
+            category_html = _category_cloud(
+                category_items, summary["weather_label"],
+            )
+            breakdown_parts = []
+            family_total = max(summary["reports"], 1)
+            for item in summary["breakdown"]:
+                tone = " monitored" if item["monitored"] else " residual"
+                bar_width = round((item["reports"] / family_total) * 100)
+                breakdown_parts.append(f"""
+                  <div class="model-row{tone}">
+                    <div class="model-row-head"><span>{html.escape(item['label'])}</span><b>{item['reports']}</b></div>
+                    <div class="model-volume"><span style="width:{bar_width}%"></span></div>
+                  </div>""")
+            if key == "21d":
+                comparison = "baseline window"
+            elif summary["reports"] < 3:
+                comparison = "limited sample"
+            else:
+                expected = baseline_daily * (seconds / (24 * HOUR))
+                comparison = (
+                    f"{summary['reports'] / expected:.1f}× usual rate"
+                    if expected >= 0.5 else "building baseline"
+                )
+            hidden = "" if key == "now" else " hidden"
+            pane_parts.append(f"""
+              <div class="window-pane" data-window-pane="{key}"{hidden}>
+                <div class="report-line">
+                  <strong>{summary['reports']}</strong>
+                  <span>reports in rolling {range_label}</span>
+                  <em>{html.escape(comparison)}</em>
+                </div>
+                <div class="meta-line">
+                  <span>{summary['independent']} independent after deduplication</span>
+                  <span>{source_text}</span>
+                </div>
+                <div class="category-weather">{category_html}</div>
+                <div class="breakdown">
+                  <span class="breakdown-label">Reports by monitored model</span>
+                  <div class="model-bars">{''.join(breakdown_parts)}</div>
+                </div>
               </div>""")
-        breakdown_html = "".join(breakdown_parts)
-        variant_terms = tuple(item["label"] for item in breakdown)
+            data_attributes.extend((
+                f'data-reports-{key}="{summary["reports"]}"',
+                f'data-independent-{key}="{summary["independent"]}"',
+                f'data-latest-{key}="{summary["latest"]:.0f}"',
+                f'data-status-{key}="{summary["status_key"]}"',
+                f'data-status-label-{key}="{html.escape(summary["status_label"], quote=True)}"',
+                f'data-status-colour-{key}="{summary["status_colour"]}"',
+                f'data-weather-{key}="{summary["weather_key"]}"',
+            ))
+        initial = windows["now"]
+        terms = tuple(meta["recognised_terms"])
+        variant_terms = tuple(
+            item["label"] for item in windows["21d"]["breakdown"]
+        )
         search_terms = " ".join(
             (model, meta["label"], meta["lab"], *terms, *variant_terms)
         ).lower()
-        latest = max((c.ts for c in complaints), default=0)
         cards.append(f"""
-        <article class="model-card weather-{weather_key}"
-          style="--status-colour:{status_colour}"
+        <article class="model-card weather-{initial['weather_key']}"
+          style="--status-colour:{initial['status_colour']}"
           data-model="{html.escape(model)}"
           data-lab="{html.escape(meta['lab'].lower())}"
-          data-status="{status_key}" data-reports="{len(complaints)}"
-          data-independent="{len(clusters)}" data-latest="{latest:.0f}"
+          data-status="{initial['status_key']}" data-reports="{initial['reports']}"
+          data-independent="{initial['independent']}" data-latest="{initial['latest']:.0f}"
+          {' '.join(data_attributes)}
           data-search="{html.escape(search_terms, quote=True)}">
           <div class="weather-scene" aria-hidden="true"><span class="weather-motion"></span></div>
           <div class="rank" aria-label="Rank {rank}">{rank:02d}</div>
@@ -172,22 +279,10 @@ def render_landing(
                 <h3>{html.escape(meta['label'])}</h3>
               </div>
               <span class="status">
-                <i></i>{html.escape(status_label)}
+                <i></i><span class="status-text">{html.escape(initial['status_label'])}</span>
               </span>
             </div>
-            <div class="report-line">
-              <strong>{len(complaints)}</strong>
-              <span>reports in the last {window_days} days</span>
-            </div>
-            <div class="meta-line">
-              <span>{len(clusters)} independent after deduplication</span>
-              <span>{source_text}</span>
-            </div>
-            <div class="category-weather">{category_html}</div>
-            <div class="breakdown">
-              <span class="breakdown-label">Reports by monitored model</span>
-              <div class="model-bars">{breakdown_html}</div>
-            </div>
+            {''.join(pane_parts)}
           </div>
           <a class="detail-link" href="barometer_{html.escape(model)}.html"
              aria-label="Open {html.escape(meta['label'])} detail">View detail <span>→</span></a>
@@ -198,13 +293,40 @@ def render_landing(
         for lab in labs
     )
     updated = _fmt(generated_at)
-    source_summary = " · ".join(
-        f"{html.escape(source.upper())} {count}"
-        for source, count in sorted(all_sources.items())
-    ) or "No source data yet"
-    fleet_reading = (
-        f"{corroborated} corroborated signal{'s' if corroborated != 1 else ''}"
-        if corroborated else "No corroborated signals"
+    fleet_readings = {
+        key: (
+            f"{summary['corroborated']} corroborated signal"
+            f"{'s' if summary['corroborated'] != 1 else ''}"
+            if summary["corroborated"] else "No corroborated signals"
+        )
+        for key, summary in fleet_windows.items()
+    }
+    source_summaries = {
+        key: " · ".join(
+            f"{html.escape(source.upper())} {count}"
+            for source, count in sorted(summary["sources"].items())
+        ) or "No source data yet"
+        for key, summary in fleet_windows.items()
+    }
+    fleet_reading_attrs = " ".join(
+        f'data-{key}="{html.escape(value, quote=True)}"'
+        for key, value in fleet_readings.items()
+    )
+    source_summary_attrs = " ".join(
+        f'data-{key}="{html.escape(value, quote=True)}"'
+        for key, value in source_summaries.items()
+    )
+    report_total_attrs = " ".join(
+        f'data-{key}="{summary["reports"]}"'
+        for key, summary in fleet_windows.items()
+    )
+    independent_total_attrs = " ".join(
+        f'data-{key}="{summary["independent"]}"'
+        for key, summary in fleet_windows.items()
+    )
+    source_total_attrs = " ".join(
+        f'data-{key}="{len(summary["sources"])}"'
+        for key, summary in fleet_windows.items()
     )
     empty_message = "" if cards else "Nothing has been observed yet."
     page = f"""<!doctype html>
@@ -217,6 +339,7 @@ def render_landing(
   --amber:#e8b85b;--green:#7aa78d;--shadow:0 18px 44px rgba(0,0,0,.22)}}
 *{{box-sizing:border-box}} body{{margin:0;background:var(--paper);color:var(--ink);
   font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}}
+[hidden]{{display:none!important}}
 a{{color:inherit}} .shell{{width:min(1180px,calc(100% - 40px));margin:auto}}
 header{{padding:30px 0 12px;border-bottom:1px solid rgba(255,255,255,.06)}}
 .nav{{display:flex;align-items:center;justify-content:space-between;gap:20px}}
@@ -238,6 +361,7 @@ h1{{font-size:clamp(42px,7vw,78px);line-height:.96;letter-spacing:-.055em;margin
 .section-head{{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:20px}}
 h2{{font-size:32px;letter-spacing:-.035em;margin:6px 0 0}} .updated{{color:var(--muted);font-size:12px;text-align:right}}
 .controls{{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:18px}}
+.window-row{{display:flex;align-items:center;gap:8px;margin-bottom:12px}} .window-label{{color:var(--faint);font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;margin-right:3px}} .window-button{{color:var(--muted);background:#0e141b;border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer;font:inherit;font-size:12px}} .window-button.active{{color:#071018;background:var(--blue);border-color:var(--blue);font-weight:800}} .window-button small{{font-size:9px;opacity:.74;margin-left:3px}}
 .control-row{{display:grid;grid-template-columns:minmax(220px,1fr) auto auto;gap:12px}}
 input,select{{width:100%;color:var(--ink);background:#0e141b;border:1px solid #303c48;border-radius:10px;padding:11px 13px;font:inherit;outline:none}}
 input:focus,select:focus{{border-color:var(--blue);box-shadow:0 0 0 3px rgba(126,178,200,.12)}}
@@ -258,7 +382,7 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 .card-heading{{display:flex;justify-content:space-between;align-items:start;gap:18px}} h3{{font-size:26px;letter-spacing:-.025em;margin:2px 0 0}}
 .status{{display:inline-flex;align-items:center;gap:7px;color:#c4ccd3;font-size:12px;white-space:nowrap}}
 .status i{{width:8px;height:8px;border-radius:50%;background:var(--status-colour);box-shadow:0 0 0 4px color-mix(in srgb,var(--status-colour) 14%,transparent)}}
-.report-line{{display:flex;align-items:baseline;gap:9px;margin:19px 0 8px}} .report-line strong{{font-size:34px;line-height:1}} .report-line span{{color:var(--muted)}}
+.report-line{{display:flex;align-items:baseline;gap:9px;margin:19px 0 8px;flex-wrap:wrap}} .report-line strong{{font-size:34px;line-height:1}} .report-line span{{color:var(--muted)}} .report-line em{{margin-left:auto;color:#99afbb;background:rgba(9,14,20,.46);border:1px solid rgba(126,178,200,.2);border-radius:999px;padding:3px 8px;font-size:10px;font-style:normal}}
 .meta-line{{display:flex;justify-content:space-between;gap:16px;color:var(--muted);font-size:12px;margin:9px 0 14px}}
 .category-weather{{width:min(500px,100%);margin:15px 0 2px}} .cloud-heading{{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:-2px}} .cloud-key{{color:#71808d;font-size:10px}}
 .category-cloud{{position:relative;width:100%;aspect-ratio:3.5/1;isolation:isolate;filter:drop-shadow(0 12px 15px rgba(0,0,0,.2));animation:cloud-drift 11s ease-in-out infinite alternate}}
@@ -281,7 +405,7 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 .method-card b{{display:block;margin-bottom:5px}} .method-card span{{color:var(--muted);font-size:12px}}
 footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);font-size:12px}}
 @media(prefers-reduced-motion:reduce){{.category-cloud,.weather-motion{{animation:none!important}}}}
-@media(max-width:780px){{.hero{{grid-template-columns:1fr;padding-top:50px}}.stats-row{{grid-template-columns:1fr 1fr}}.stat:nth-child(2){{border-right:0}}.stat{{border-bottom:1px solid var(--line)}}.control-row{{grid-template-columns:1fr}}.model-card{{grid-template-columns:32px 1fr}}.detail-link{{grid-column:2;border-left:0;border-top:1px solid var(--line);padding:14px 0 0}}.meta-line,.section-head{{align-items:start;flex-direction:column}}.model-bars{{grid-template-columns:1fr}}.method{{grid-template-columns:1fr}}.method-grid{{grid-template-columns:1fr}}}}
+@media(max-width:780px){{.hero{{grid-template-columns:1fr;padding-top:50px}}.stats-row{{grid-template-columns:1fr 1fr}}.stat:nth-child(2){{border-right:0}}.stat{{border-bottom:1px solid var(--line)}}.window-row{{flex-wrap:wrap}}.control-row{{grid-template-columns:1fr}}.model-card{{grid-template-columns:32px 1fr}}.detail-link{{grid-column:2;border-left:0;border-top:1px solid var(--line);padding:14px 0 0}}.meta-line,.section-head{{align-items:start;flex-direction:column}}.model-bars{{grid-template-columns:1fr}}.method{{grid-template-columns:1fr}}.method-grid{{grid-template-columns:1fr}}}}
 </style></head><body>
 <header><div class="shell nav">
   <a class="brand" href="index.html"><span>☂</span> The Barometer</a>
@@ -294,18 +418,24 @@ footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);
       <h1>Is it just you—or is something shifting?</h1>
       <p>Barometer gathers public reports across independent sources, collapses viral echoes, and shows where unusual model behaviour may be emerging.</p>
     </div>
-    <aside class="weather-box"><span>Current fleet reading</span><strong>{fleet_reading}</strong><span>{source_summary}</span></aside>
+    <aside class="weather-box"><span>Current fleet reading</span><strong id="fleet-reading" {fleet_reading_attrs}>{html.escape(fleet_readings['now'])}</strong><span id="fleet-sources" {source_summary_attrs}>{source_summaries['now']}</span></aside>
   </section>
   <section class="stats-row" aria-label="Current observation summary">
-    <div class="stat"><b>{total_reports}</b><span>accepted reports</span></div>
-    <div class="stat"><b>{total_independent}</b><span>independent after dedup</span></div>
+    <div class="stat"><b id="fleet-reports" {report_total_attrs}>{initial_fleet['reports']}</b><span>accepted reports</span></div>
+    <div class="stat"><b id="fleet-independent" {independent_total_attrs}>{initial_fleet['independent']}</b><span>independent after dedup</span></div>
     <div class="stat"><b>{len(models)}</b><span>model families tracked</span></div>
-    <div class="stat"><b>{len(all_sources)}</b><span>active source types</span></div>
+    <div class="stat"><b id="fleet-source-count" {source_total_attrs}>{len(initial_fleet['sources'])}</b><span>active source types</span></div>
   </section>
   <div class="data-note"><b>Preview data:</b> {html.escape(PREVIEW_DATA_NOTE)}</div>
   <section aria-labelledby="reported-heading">
-    <div class="section-head"><div><div class="section-kicker">Live index</div><h2 id="reported-heading">Most reported right now</h2></div><div class="updated">Updated {updated}<br>Rolling {window_days}-day window</div></div>
+    <div class="section-head"><div><div class="section-kicker">Live index</div><h2 id="reported-heading">Most reported right now</h2></div><div class="updated">Updated {updated}<br><span id="window-description">Rolling 24-hour window</span></div></div>
     <div class="controls">
+      <div class="window-row" role="group" aria-label="Display window">
+        <span class="window-label">Display window</span>
+        <button type="button" class="window-button active" data-display-window="now">Now <small>24h</small></button>
+        <button type="button" class="window-button" data-display-window="7d">7 days</button>
+        <button type="button" class="window-button" data-display-window="21d">21 days</button>
+      </div>
       <div class="control-row">
         <input id="model-search" type="search" placeholder="Search by lab, family, or model — e.g. Anthropic, Claude, Sonnet" aria-label="Search tracked models">
         <select id="status-filter" aria-label="Filter by signal status"><option value="all">All signal statuses</option><option value="corroborated">Corroborated only</option><option value="attention">Needs attention</option><option value="uncorroborated">Uncorroborated bursts</option><option value="quiet">No burst detected</option></select>
@@ -329,7 +459,41 @@ footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);
   const sort = document.querySelector('#sort-models');
   const meta = document.querySelector('#results-meta');
   const empty = document.querySelector('#empty-results');
+  const fleetReading = document.querySelector('#fleet-reading');
+  const fleetSources = document.querySelector('#fleet-sources');
+  const fleetReports = document.querySelector('#fleet-reports');
+  const fleetIndependent = document.querySelector('#fleet-independent');
+  const fleetSourceCount = document.querySelector('#fleet-source-count');
+  const windowDescription = document.querySelector('#window-description');
   let lab = 'all';
+  let displayWindow = 'now';
+  const weatherClasses = ['rain','fog','storm','heat','overcast','clear'].map(item => `weather-${{item}}`);
+  function setWindow(key) {{
+    displayWindow = key;
+    cards.forEach(card => {{
+      ['reports','independent','latest','status'].forEach(field => {{
+        card.dataset[field] = card.getAttribute(`data-${{field}}-${{key}}`);
+      }});
+      const colour = card.getAttribute(`data-status-colour-${{key}}`);
+      const weather = card.getAttribute(`data-weather-${{key}}`);
+      card.style.setProperty('--status-colour', colour);
+      card.classList.remove(...weatherClasses);
+      card.classList.add(`weather-${{weather}}`);
+      card.querySelector('.status-text').textContent = card.getAttribute(`data-status-label-${{key}}`);
+      card.querySelectorAll('[data-window-pane]').forEach(pane => {{
+        pane.hidden = pane.dataset.windowPane !== key;
+      }});
+    }});
+    [fleetReading,fleetSources,fleetReports,fleetIndependent,fleetSourceCount].forEach(item => {{
+      item.textContent = item.dataset[key];
+    }});
+    windowDescription.textContent = {{now:'Rolling 24-hour window','7d':'Rolling 7-day window','21d':'Rolling 21-day window'}}[key];
+    document.querySelectorAll('[data-display-window]').forEach(button => {{
+      button.classList.toggle('active', button.dataset.displayWindow === key);
+      button.setAttribute('aria-pressed', button.dataset.displayWindow === key ? 'true' : 'false');
+    }});
+    apply();
+  }}
   function apply() {{
     const query = search.value.trim().toLowerCase();
     const wantedStatus = status.value;
@@ -359,66 +523,181 @@ footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);
     document.querySelectorAll('[data-lab-filter]').forEach(item => item.classList.toggle('active', item === button));
     apply();
   }}));
-  search.addEventListener('input', apply); status.addEventListener('change', apply); sort.addEventListener('change', apply); apply();
+  document.querySelectorAll('[data-display-window]').forEach(button => button.addEventListener('click', () => setWindow(button.dataset.displayWindow)));
+  search.addEventListener('input', apply); status.addEventListener('change', apply); sort.addEventListener('change', apply); setWindow(displayWindow);
 }})();
 </script></body></html>"""
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(page)
 
-def render_dashboard(model: str, complaints: list[Complaint],
-                     assessments: list[Assessment], out_path: str,
-                     bin_hours: int = 3) -> None:
+def render_dashboard(
+        model: str, complaints: list[Complaint], assessments: list[Assessment],
+        out_path: str, generated_at: float | None = None,
+        window_days: int = 21) -> None:
+    """Render an aggregate-only family detail page with exact-model controls."""
+    generated_at = generated_at or max(
+        (complaint.ts for complaint in complaints), default=0,
+    )
+    meta = model_catalog_entry(model)
     cs = sorted((c for c in complaints if c.model == model), key=lambda c: c.ts)
-    clusters = cascade_clusters(cs)
-    source_summary = " · ".join(
-        f"{source} × {count}"
-        for source, count in sorted(Counter(c.source for c in cs).items())
-    ) or "—"
-    ctimes = sorted(cl[0].ts for cl in clusters)
-    counts = []
-    if ctimes:
-        t = ctimes[0]
-        while t <= ctimes[-1]:
-            counts.append(sum(1 for x in ctimes if t <= x < t + bin_hours*HOUR))
-            t += bin_hours*HOUR
-    cards = ""
-    for a in sorted(assessments, key=lambda a: -a.burst.start):
-        colour, label = TIER_STYLE[a.tier]
-        srcs = ", ".join(f"{k}×{v}" for k, v in a.burst.sources.items()) or "—"
-        drift = f"{a.drift:.3f}" if a.drift is not None else "no canary pair"
-        cards += f"""
-        <div class="card" style="border-left:5px solid {colour}">
-          <div class="tier" style="color:{colour}">{label}</div>
-          <div class="when">{_fmt(a.burst.start)} → {_fmt(a.burst.end)}</div>
-          <div class="stats">observed <b>{a.burst.observed}</b> independent clusters
-            vs expected <b>{a.burst.expected}</b> (z={a.burst.zscore})<br>
-            sources: {html.escape(srcs)} · canary drift: {drift}
-            · fingerprint changed: {a.fingerprint_changed} · provider ack: {a.acknowledged}</div>
-          <div class="summary">{html.escape(a.summary)}</div>
-        </div>"""
-    page = f"""<!doctype html><meta charset="utf-8">
-<title>The Barometer — {html.escape(model)}</title>
+    tracked = tuple(meta.get("tracked_variants", ()))
+    variants = [{"key": "all", "label": f"All {meta['label']}"}] + [
+        {"key": item["key"], "label": item["label"]} for item in tracked
+    ]
+
+    def assigned_variant(complaint: Complaint) -> str:
+        return complaint.variant or infer_variant(model, complaint.text) or "unspecified"
+
+    def timeline(current: list[Complaint], key: str, seconds: float) -> dict:
+        bins = 8 if key == "now" else (7 if key == "7d" else 21)
+        step = seconds / bins
+        start = generated_at - seconds
+        counts = [0] * bins
+        for complaint in current:
+            index = min(int((complaint.ts - start) / step), bins - 1)
+            if index >= 0:
+                counts[index] += 1
+        labels = []
+        for index in range(bins):
+            stamp = datetime.fromtimestamp(
+                start + (index * step), tz=timezone.utc,
+            )
+            labels.append(stamp.strftime("%H:%M") if key == "now" else stamp.strftime("%d %b"))
+        return {"counts": counts, "labels": labels}
+
+    views = {}
+    for variant in variants:
+        variant_cs = cs if variant["key"] == "all" else [
+            complaint for complaint in cs
+            if assigned_variant(complaint) == variant["key"]
+        ]
+        views[variant["key"]] = {}
+        for key, _, range_label, seconds in DISPLAY_WINDOWS:
+            summary = _window_summary(
+                model, variant_cs, assessments, generated_at, seconds,
+            )
+            category_items = sorted(
+                summary["categories"].items(),
+                key=lambda item: (item[0] == "other", -item[1], item[0]),
+            )[:4]
+            views[variant["key"]][key] = {
+                "reports": summary["reports"],
+                "independent": summary["independent"],
+                "sources": [
+                    {"name": source.upper(), "count": count}
+                    for source, count in sorted(summary["sources"].items())
+                ],
+                "categories": [
+                    {"name": category, "count": count}
+                    for category, count in category_items
+                ],
+                "weather": summary["weather_key"],
+                "weather_label": summary["weather_label"],
+                "status": summary["status_key"],
+                "status_label": summary["status_label"],
+                "status_colour": summary["status_colour"],
+                "range_label": range_label,
+                "timeline": timeline(summary["complaints"], key, seconds),
+            }
+    payload = {
+        "family": model,
+        "family_label": meta["label"],
+        "lab": meta["lab"],
+        "default_variant": "all",
+        "default_window": "21d",
+        "variants": variants,
+        "views": views,
+    }
+    payload_json = json.dumps(payload, separators=(",", ":")).replace("</", "<\\/")
+    variant_buttons = "".join(
+        f'<button type="button" class="selector-button'
+        f'{" active" if item["key"] == "all" else ""}" '
+        f'data-variant="{html.escape(item["key"], quote=True)}">'
+        f'{html.escape(item["label"])}</button>'
+        for item in variants
+    )
+    filler_words = "".join(
+        f"<span>{html.escape(word)}</span>"
+        for _ in range(8)
+        for word in CLOUD_FILLER_WORDS
+    )
+    updated = _fmt(generated_at)
+    page = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{html.escape(meta['label'])} weather — The Barometer</title>
 <style>
- body{{background:#0d1017;color:#cfd6e0;font:15px/1.5 system-ui;margin:0;padding:32px;max-width:760px;margin:auto}}
- .back{{display:inline-block;color:#8fb4c5;text-decoration:none;margin-bottom:8px}}
- h1{{font-weight:600;letter-spacing:.5px}} h1 small{{color:#69707c;font-weight:400}}
- .card{{background:#161b24;border-radius:8px;padding:14px 18px;margin:14px 0}}
- .tier{{font-weight:700;letter-spacing:1px;font-size:13px}}
- .when{{color:#8a92a0;font-size:13px;margin:2px 0 6px}}
- .stats{{font-size:14px}} .summary{{margin-top:8px;color:#aeb6c2;font-style:italic}}
- .sources{{color:#8a92a0;font-size:13px;margin-top:-8px}}
- .ethic{{margin-top:36px;color:#69707c;font-size:13px;border-top:1px solid #232a36;padding-top:14px}}
-</style>
-<a class="back" href="index.html">← All models</a>
-<h1>☂ The Barometer <small>· {html.escape(model)} · fleet weather, not verdicts</small></h1>
-<p>{len(cs)} raw reports · {len(clusters)} independent after cascade dedup</p>
-<p class="sources">source mix: {html.escape(source_summary)}</p>
-{_sparkline(counts)}
-{cards if cards else '<div class="card">No bursts above baseline. Ordinary weather.</div>'}
-<div class="ethic">This instrument reports that <b>something changed</b> — it cannot
-and does not claim what: weights, quantization, serving config, and product-layer
-prompts are indistinguishable from outside. No model was quizzed in the taking of
-these readings; canaries measure distribution shape on a fixed benign text only.
-Complaints are public posts, aggregated, cascade-deduplicated.</div>"""
+:root{{--ink:#e8edf1;--muted:#8e9aa6;--faint:#5f6b76;--paper:#0a0e13;--panel:#111821;--line:#27333f;--blue:#7eb2c8;--status-colour:#9db0bf}}
+*{{box-sizing:border-box}} body{{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}} a{{color:inherit}} .shell{{width:min(1060px,calc(100% - 40px));margin:auto}}
+header{{border-bottom:1px solid rgba(255,255,255,.06)}} .nav{{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:18px}} .brand{{font-weight:800;text-decoration:none}} .brand span{{color:var(--blue)}} .back{{color:var(--muted);font-size:13px;text-decoration:none}} .back:hover{{color:#fff}}
+.hero{{padding:54px 0 28px;display:flex;justify-content:space-between;align-items:end;gap:28px}} .eyebrow{{color:var(--blue);font-size:11px;font-weight:850;letter-spacing:.14em;text-transform:uppercase}} h1{{font-size:clamp(42px,7vw,70px);line-height:.95;letter-spacing:-.05em;margin:8px 0 13px}} .hero p{{color:var(--muted);margin:0}} .updated{{color:var(--faint);font-size:11px;text-align:right}}
+.selectors{{display:grid;gap:11px;margin-bottom:18px}} .selector-row{{display:flex;align-items:center;gap:8px;flex-wrap:wrap}} .selector-label{{width:92px;color:var(--faint);font-size:10px;font-weight:850;letter-spacing:.11em;text-transform:uppercase}} .selector-button{{color:var(--muted);background:#0e141b;border:1px solid var(--line);border-radius:999px;padding:7px 11px;font:inherit;font-size:12px;cursor:pointer}} .selector-button.active{{color:#071018;background:var(--blue);border-color:var(--blue);font-weight:800}}
+.weather-panel{{position:relative;isolation:isolate;overflow:hidden;border:1px solid var(--line);border-radius:20px;min-height:500px;padding:28px;background:#101720;box-shadow:0 24px 70px rgba(0,0,0,.28)}} .weather-panel>:not(.weather-scene){{position:relative;z-index:2}} .weather-scene{{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}} .weather-scene::after{{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,14,20,.28),rgba(9,14,20,.72) 76%,rgba(9,14,20,.87)),linear-gradient(0deg,rgba(8,12,17,.48),transparent 62%)}} .weather-motion{{position:absolute;display:block}}
+.weather-rain .weather-scene{{background:radial-gradient(ellipse at 14% 4%,rgba(105,139,158,.42),transparent 42%),linear-gradient(145deg,#1b2a35,#0c131b 72%)}} .weather-rain .weather-motion{{inset:-60% -20%;opacity:.28;background:repeating-linear-gradient(111deg,transparent 0 17px,rgba(187,220,234,.52) 18px 19px,transparent 20px 34px);animation:rain-fall 1.8s linear infinite}}
+.weather-fog .weather-scene{{background:linear-gradient(150deg,#26323a,#101820 70%)}} .weather-fog .weather-motion{{inset:5% -28%;opacity:.34;filter:blur(14px);background:radial-gradient(ellipse at 28% 34%,rgba(213,225,226,.52),transparent 32%),radial-gradient(ellipse at 66% 72%,rgba(163,181,187,.44),transparent 38%);animation:fog-bank 14s ease-in-out infinite alternate}}
+.weather-storm .weather-scene{{background:radial-gradient(circle at 76% 12%,rgba(125,123,171,.32),transparent 24%),linear-gradient(142deg,#202638,#090e17 74%)}} .weather-storm .weather-motion{{right:15%;top:-12px;width:92px;height:175px;background:linear-gradient(180deg,#f6f0bf,#b4d8e8 58%,transparent);clip-path:polygon(52% 0,22% 48%,46% 46%,29% 100%,76% 37%,54% 40%);filter:drop-shadow(0 0 18px rgba(218,235,255,.8));animation:lightning 7s steps(1,end) infinite}}
+.weather-heat .weather-scene{{background:radial-gradient(circle at 16% 18%,rgba(235,154,81,.43),transparent 29%),linear-gradient(145deg,#38271e,#171218 72%)}} .weather-heat .weather-motion{{inset:-30% -10%;opacity:.2;filter:blur(12px);background:repeating-linear-gradient(92deg,transparent 0 42px,rgba(255,196,124,.6) 48px,transparent 58px);animation:heat-rise 8s ease-in-out infinite alternate}}
+.weather-overcast .weather-scene{{background:radial-gradient(ellipse at 12% 12%,rgba(123,141,151,.36),transparent 33%),linear-gradient(145deg,#202b33,#10171e 72%)}} .weather-clear .weather-scene{{background:radial-gradient(circle at 14% 110%,rgba(48,105,117,.38),transparent 45%),linear-gradient(145deg,#111d2d,#090d16 76%)}} .weather-clear .weather-motion{{inset:0;opacity:.55;background:radial-gradient(circle at 12% 22%,#d8edf2 0 1px,transparent 1.5px),radial-gradient(circle at 44% 31%,#e7f4f6 0 1px,transparent 1.5px),radial-gradient(circle at 82% 35%,#d5e6ec 0 1px,transparent 1.5px);background-size:190px 150px}}
+.panel-head{{display:flex;justify-content:space-between;gap:18px;align-items:start}} .weather-name{{color:#b5c9d2;font-size:11px;font-weight:850;letter-spacing:.12em;text-transform:uppercase}} .signal{{display:flex;align-items:center;gap:8px;color:#c6d0d7;font-size:12px}} .signal i{{width:8px;height:8px;border-radius:50%;background:var(--status-colour);box-shadow:0 0 0 4px color-mix(in srgb,var(--status-colour) 15%,transparent)}}
+.metrics{{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.08);border-radius:13px;overflow:hidden;margin:20px 0}} .metric{{padding:17px;background:rgba(8,13,18,.55)}} .metric b{{display:block;font-size:28px}} .metric span{{color:var(--muted);font-size:11px}}
+.detail-grid{{display:grid;grid-template-columns:1.2fr .8fr;gap:24px}} .section-label{{display:block;color:#7d8b96;font-size:10px;font-weight:850;letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px}} .chart{{height:174px;display:flex;align-items:end;gap:4px;padding:12px 8px 25px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(6,10,15,.42)}} .bar-wrap{{height:100%;flex:1;display:flex;align-items:end;position:relative}} .bar{{width:100%;min-height:2px;background:linear-gradient(180deg,#9fc5d4,#537b8d);border-radius:3px 3px 0 0}} .bar-wrap span{{position:absolute;left:50%;bottom:-20px;transform:translateX(-50%);color:#65737e;font-size:8px;white-space:nowrap}} .bar-wrap:not(:first-child):not(:last-child) span{{display:none}}
+.theme-list,.source-list{{display:grid;gap:8px}} .theme,.source{{display:flex;justify-content:space-between;gap:14px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);background:rgba(6,10,15,.42);border-radius:9px;color:#b8c5cc}} .theme b,.source b{{color:#fff}} .empty-note{{color:var(--muted);padding:24px;border:1px dashed rgba(255,255,255,.12);border-radius:10px}}
+.actions{{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,.1)}} .actions p{{color:#91a0aa;font-size:12px;max-width:620px;margin:0}} .report-link{{white-space:nowrap;text-decoration:none;border:1px solid #719bae;border-radius:999px;padding:9px 13px;color:#d9e9ef;background:rgba(40,72,86,.28)}}
+.data-note{{margin:18px 0 58px;color:#aa9d7f;border:1px solid #4a4028;background:#17150e;border-radius:10px;padding:11px 14px;font-size:12px}} footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);font-size:12px}}
+@keyframes rain-fall{{from{{transform:translate3d(0,-8%,0)}}to{{transform:translate3d(-5%,16%,0)}}}} @keyframes fog-bank{{from{{transform:translate3d(-4%,0,0)}}to{{transform:translate3d(5%,1%,0)}}}} @keyframes heat-rise{{from{{transform:translate3d(0,4%,0)}}to{{transform:translate3d(2%,-4%,0)}}}} @keyframes lightning{{0%,88%,92%,100%{{opacity:0}}89%{{opacity:.9}}90%{{opacity:.18}}91%{{opacity:.75}}}}
+@media(prefers-reduced-motion:reduce){{.weather-motion{{animation:none!important}}}} @media(max-width:760px){{.hero,.panel-head,.actions{{align-items:start;flex-direction:column}}.updated{{text-align:left}}.metrics{{grid-template-columns:1fr}}.detail-grid{{grid-template-columns:1fr}}.selector-label{{width:100%}}}}
+</style></head><body>
+<header><div class="shell nav"><a class="brand" href="index.html"><span>☂</span> The Barometer</a><a class="back" href="index.html">← All model weather</a></div></header>
+<main class="shell">
+  <section class="hero"><div><div class="eyebrow">{html.escape(meta['lab'])} · model detail</div><h1>{html.escape(meta['label'])}</h1><p>Twenty-one days of context, with a closer look at the weather now.</p></div><div class="updated">Updated {updated}<br>Aggregate data only</div></section>
+  <div class="selectors">
+    <div class="selector-row"><span class="selector-label">Model</span>{variant_buttons}</div>
+    <div class="selector-row"><span class="selector-label">Window</span><button type="button" class="selector-button" data-window="now">Now · 24h</button><button type="button" class="selector-button" data-window="7d">7 days</button><button type="button" class="selector-button active" data-window="21d">21 days</button></div>
+  </div>
+  <section class="weather-panel" id="weather-panel">
+    <div class="weather-scene" aria-hidden="true"><span class="weather-motion"></span></div>
+    <div class="panel-head"><div><span class="weather-name" id="weather-name"></span><h2 id="selection-title"></h2></div><span class="signal"><i></i><span id="signal-label"></span></span></div>
+    <div class="metrics"><div class="metric"><b id="report-count"></b><span id="report-range"></span></div><div class="metric"><b id="independent-count"></b><span>independent after deduplication</span></div><div class="metric"><b id="source-count"></b><span>active source types</span></div></div>
+    <div class="detail-grid"><div><span class="section-label">Report activity</span><div class="chart" id="chart"></div></div><div><span class="section-label">Report themes</span><div class="theme-list" id="theme-list"></div><span class="section-label" style="margin-top:18px">Source mix</span><div class="source-list" id="source-list"></div></div></div>
+    <div class="actions"><p>Signal status remains family-level until an exact model has enough non-synthetic history for a defensible baseline.</p><a class="report-link" id="report-link" href="report.html">Report this model →</a></div>
+  </section>
+  <div class="data-note"><b>Preview data:</b> {html.escape(PREVIEW_DATA_NOTE)}</div>
+</main>
+<footer><div class="shell">A report trend says something may have changed. It does not say why.</div></footer>
+<script id="detail-data" type="application/json">{payload_json}</script>
+<script>
+(() => {{
+  const data = JSON.parse(document.querySelector('#detail-data').textContent);
+  const panel = document.querySelector('#weather-panel');
+  const weatherClasses = ['rain','fog','storm','heat','overcast','clear'].map(item => `weather-${{item}}`);
+  let variant = data.default_variant;
+  let windowKey = data.default_window;
+  const empty = text => `<div class="empty-note">${{text}}</div>`;
+  function render() {{
+    const view = data.views[variant][windowKey];
+    const variantMeta = data.variants.find(item => item.key === variant);
+    panel.classList.remove(...weatherClasses); panel.classList.add(`weather-${{view.weather}}`);
+    panel.style.setProperty('--status-colour', view.status_colour);
+    document.querySelector('#weather-name').textContent = `Report weather · ${{view.weather_label}}`;
+    document.querySelector('#selection-title').textContent = variantMeta.label;
+    document.querySelector('#signal-label').textContent = `Family signal · ${{view.status_label}}`;
+    document.querySelector('#report-count').textContent = view.reports;
+    document.querySelector('#report-range').textContent = `reports in rolling ${{view.range_label}}`;
+    document.querySelector('#independent-count').textContent = view.independent;
+    document.querySelector('#source-count').textContent = view.sources.length;
+    const maximum = Math.max(1,...view.timeline.counts);
+    document.querySelector('#chart').innerHTML = view.timeline.counts.map((count,index) => `<div class="bar-wrap" title="${{view.timeline.labels[index]}}: ${{count}} reports"><div class="bar" style="height:${{Math.max(2,(count/maximum)*100)}}%"></div><span>${{view.timeline.labels[index]}}</span></div>`).join('');
+    document.querySelector('#theme-list').innerHTML = view.categories.length ? view.categories.map(item => `<div class="theme"><span>${{item.name}}</span><b>${{item.count}}</b></div>`).join('') : empty('No report themes in this window.');
+    document.querySelector('#source-list').innerHTML = view.sources.length ? view.sources.map(item => `<div class="source"><span>${{item.name}}</span><b>${{item.count}}</b></div>`).join('') : empty('No source data in this window.');
+    const reportModel = variant === 'all' ? data.family_label : variantMeta.label;
+    document.querySelector('#report-link').href = `report.html?model=${{encodeURIComponent(reportModel)}}`;
+    document.querySelectorAll('[data-variant]').forEach(button => button.classList.toggle('active',button.dataset.variant === variant));
+    document.querySelectorAll('[data-window]').forEach(button => button.classList.toggle('active',button.dataset.window === windowKey));
+  }}
+  document.querySelectorAll('[data-variant]').forEach(button => button.addEventListener('click',()=>{{variant=button.dataset.variant;render()}}));
+  document.querySelectorAll('[data-window]').forEach(button => button.addEventListener('click',()=>{{windowKey=button.dataset.window;render()}}));
+  render();
+}})();
+</script></body></html>"""
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(page)

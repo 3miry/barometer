@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import html
+import json
 
 from .catalog import MODEL_CATALOG, variant_breakdown
 from .detect import Assessment, Complaint, TAXONOMY
@@ -27,6 +28,13 @@ def render_report_form(
         f'<option value="{html.escape(name, quote=True)}"></option>'
         for name in sorted(exact_names)
     )
+    model_to_family = {}
+    for family, meta in MODEL_CATALOG.items():
+        names = {meta["label"], *meta["recognised_terms"]}
+        names.update(item["label"] for item in meta.get("tracked_variants", ()))
+        for name in names:
+            model_to_family[name.lower()] = family
+    prefill_json = json.dumps(model_to_family, separators=(",", ":"))
     category_labels = {
         "quality": "Overall quality dropped",
         "sluggish": "Slow or laggy",
@@ -84,6 +92,12 @@ button:disabled{{opacity:.55;cursor:wait}} .status{{color:var(--muted);font-size
   const form = document.querySelector('#report-form');
   const button = form.querySelector('button');
   const status = document.querySelector('#form-status');
+  const requestedModel = new URLSearchParams(location.search).get('model');
+  if (requestedModel) {{
+    const familyByModel = {prefill_json};
+    document.querySelector('#model-name').value = requestedModel;
+    document.querySelector('#family').value = familyByModel[requestedModel.toLowerCase()] || '';
+  }}
   form.addEventListener('submit', async event => {{
     event.preventDefault(); button.disabled = true; status.className = 'status'; status.textContent = 'Sending…';
     const data = new FormData(form);

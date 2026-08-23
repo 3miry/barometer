@@ -66,8 +66,10 @@ def tick(store: Store, adapters: list, runner: CanaryRunner | None = None,
         bursts = detect_bursts(cs, events)
         assessments = [classify_tier(b, store.readings(model), events)
                        for b in bursts]
-        render_dashboard(model, cs, assessments,
-                         f"{out_dir}/barometer_{model}.html")
+        render_dashboard(
+            model, cs, assessments, f"{out_dir}/barometer_{model}.html",
+            generated_at=now, window_days=window_days,
+        )
         report["assessments"][model] = [a.summary for a in assessments]
         public_models[model] = (cs, assessments)
 
