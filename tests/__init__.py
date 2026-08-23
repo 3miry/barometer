@@ -1,0 +1,2 @@
+"""Barometer test suite."""
+

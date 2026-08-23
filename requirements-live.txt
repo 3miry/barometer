@@ -1,0 +1,4 @@
+# The detection core and tests are standard-library only.
+# This dependency is needed only for the optional OpenAI canary transport.
+openai>=2.46.0,<3
+
