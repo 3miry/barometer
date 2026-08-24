@@ -118,6 +118,8 @@ RULES = (
     _rule("beh_0038", r"\b(?:generally\s+)?perform(?:s|ed|ing)?\s+(?:a\s+(?:bit|lot)\s+|slightly\s+|somewhat\s+|much\s+|far\s+)?better\b", state="high", change="uncertain", valence="positive"),
     _rule("beh_0038", r"\b(?:overall|general) performance\b[^.]{0,40}\b(?:declined|degraded|got worse)\b", state="low", change="decrease", valence="negative"),
     _rule("beh_0038", r"\b(?:overall|general) performance\b[^.]{0,40}\b(?:improved|got better)\b", state="high", change="increase", valence="positive"),
+    _rule("beh_0039", r"\b(?:incredibly |very |more )?(?:token[- ]efficient|efficient token[- ]wise)\b|\b(?:more|get(?:s|ting) more) done in fewer tokens\b", state="high", change="uncertain", valence="positive"),
+    _rule("beh_0039", r"\b(?:token[- ]inefficient|wastes? tokens?)\b|\b(?:more|far more) tokens?\b[^.]{0,70}\b(?:same|less) (?:task|work|result|value)\b", state="low", change="decrease", valence="negative"),
 
     # Refusal, repetition, context, and memory.
     _rule("beh_0009", r"\b(?:refusing|refuses|refused)\b[^.]{0,100}\b(?:requests?|answer|formatting)?\b|\b(?:would not|won't) answer\b", change="increase", valence="negative"),

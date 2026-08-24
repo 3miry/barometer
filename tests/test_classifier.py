@@ -20,8 +20,8 @@ class StructuredClassifierTests(unittest.TestCase):
     def test_human_reviewed_development_contract_matches(self):
         result = evaluate_fixture(DEFAULT_FIXTURE)
         self.assertEqual(result["evaluation_kind"], "development_contract")
-        self.assertEqual(result["cases"], 38)
-        self.assertEqual(result["full_matches"], 38)
+        self.assertEqual(result["cases"], 39)
+        self.assertEqual(result["full_matches"], 39)
         self.assertEqual(result["mismatches"], [])
         self.assertIn("not real-world classifier accuracy", result["warning"])
 
@@ -52,6 +52,25 @@ class StructuredClassifierTests(unittest.TestCase):
 
         cost_only = classify_report("Gemini costs a lot more now.")
         self.assertEqual(cost_only.observations, ())
+
+    def test_token_efficiency_is_distinct_from_cost_and_brevity(self):
+        result = classify_report("Fable 5 is incredibly efficient token wise.")
+        self.assertEqual(result.eligibility, "behaviour_report")
+        self.assertEqual(len(result.observations), 1)
+        observation = result.observations[0]
+        self.assertEqual(observation.concept_id, "beh_0039")
+        self.assertEqual(observation.state, "high")
+        self.assertEqual(observation.change, "uncertain")
+        self.assertEqual(observation.valence, "positive")
+
+        self.assertEqual(
+            classify_report("Fable 5 is cheaper per million tokens.").observations,
+            (),
+        )
+        self.assertEqual(
+            classify_report("Fable 5 gave me a short answer.").observations,
+            (),
+        )
 
     def test_novelty_can_coexist_with_known_codes(self):
         result = classify_report(

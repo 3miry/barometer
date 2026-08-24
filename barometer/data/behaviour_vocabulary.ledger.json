@@ -2188,6 +2188,74 @@
         "definition_version": 1,
         "origin": "Human-review finding: preserve valid but underspecified performance reports without reviving a valence-loaded quality or other bucket."
       }
+    },
+    {
+      "event_id": "vocab_evt_0048",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T19:30:00Z",
+      "concept": {
+        "id": "beh_0039",
+        "slug": "efficiency.token_use",
+        "public_label": "token efficiency",
+        "shape": "dimension",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "parent": "response efficiency",
+        "definition": "The amount of useful, task-relevant work accomplished relative to the number of tokens or response length, as reported or measured.",
+        "exclusions": [
+          "API price, subscription cost, quotas, or value for money",
+          "Response latency or generation speed",
+          "Mere brevity or low detail without a claim about useful work per token"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "efficient token wise",
+          "gets more done in fewer tokens",
+          "wastes tokens without adding value"
+        ],
+        "examples": [
+          {
+            "text": "Fable 5 is incredibly efficient token wise.",
+            "state": "high",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "positive"
+          },
+          {
+            "text": "The model now uses far more tokens to accomplish the same task.",
+            "state": "low",
+            "change": "decrease",
+            "event_state": null,
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "The API costs more per million tokens.",
+          "The answer was short but omitted necessary detail.",
+          "The first token took twenty seconds to arrive."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-review finding: distinguish useful work per token from succinctness, detail, latency, and financial cost."
+      }
     }
   ]
 }

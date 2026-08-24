@@ -1012,6 +1012,33 @@
         ]
       },
       "note": "A model-performance claim remains codable at broad resolution; the accompanying cost claim is outside the behaviour ontology."
+    },
+    {
+      "id": "eval_039",
+      "text": "Fable 5 is incredibly efficient token wise.",
+      "family": "claude",
+      "variant": "claude-fable-5",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {
+            "concept_id": "beh_0039",
+            "specificity": "specific",
+            "state": "high",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "positive",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "Token efficiency records useful work per token, not price, latency, or mere brevity."
     }
   ]
 }
