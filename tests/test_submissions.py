@@ -3,13 +3,17 @@ import http.client
 import json
 import os
 from pathlib import Path
+import sqlite3
 import tempfile
 import threading
 import time
 import unittest
 
+from barometer.cli import tick
+from barometer.store import Store
 from barometer.submissions import (
-    DuplicateSubmission, SubmissionError, SubmissionStore, validate_submission,
+    DuplicateSubmission, SubmissionError, SubmissionStore, author_token,
+    validate_submission,
 )
 from serve_barometer import BarometerHandler, BarometerServer
 
@@ -65,6 +69,79 @@ class SubmissionStoreTests(unittest.TestCase):
                 self.assertTrue(store.moderate(report.id, "approved", "reviewed"))
                 self.assertEqual(store.get(report.id)["status"], "approved")
 
+    def test_approved_bridge_excludes_raw_text_and_rejected_reports(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "reports.db")
+            approved = validate_submission(
+                {**VALID, "description": "PRIVATE APPROVED WORDS"}, now=2000.0,
+            )
+            rejected = validate_submission(
+                {**VALID, "category": "sluggish",
+                 "description": "PRIVATE REJECTED WORDS"}, now=2001.0,
+            )
+            with SubmissionStore(path) as store:
+                store.add(approved)
+                store.add(rejected)
+                store.moderate(approved.id, "approved")
+                store.moderate(rejected.id, "rejected")
+                observations = store.approved_complaints(since=1900.0)
+            self.assertEqual(len(observations), 1)
+            self.assertEqual(observations[0].source, "user")
+            self.assertEqual(observations[0].variant, "claude-opus-5")
+            self.assertIn("quality dropped", observations[0].text)
+            self.assertNotIn("PRIVATE", observations[0].text)
+
+    def test_rate_limit_ledger_is_durable_and_contains_no_address(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "reports.db")
+            token = author_token(b"test-secret", "2001:0db8::1")
+            self.assertEqual(token, author_token(b"test-secret", "2001:db8:0::1"))
+            self.assertNotIn("2001", token)
+            with SubmissionStore(path) as store:
+                self.assertEqual(
+                    store.consume_attempt(token, now=1000.0, limits=((2, 60),)),
+                    (True, 0),
+                )
+                self.assertEqual(
+                    store.consume_attempt(token, now=1010.0, limits=((2, 60),)),
+                    (True, 0),
+                )
+            with SubmissionStore(path) as store:
+                allowed, retry_after = store.consume_attempt(
+                    token, now=1020.0, limits=((2, 60),),
+                )
+                self.assertFalse(allowed)
+                self.assertEqual(retry_after, 40)
+
+    def test_approved_observation_reaches_aggregate_output_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            submission_path = os.path.join(directory, "reports.db")
+            observed_at = 1_700_000_000.0
+            report = validate_submission(
+                {**VALID, "description": "NEVER PUBLISH THIS"}, now=observed_at,
+            )
+            with SubmissionStore(submission_path) as submissions:
+                submissions.add(report)
+                submissions.moderate(report.id, "approved")
+                approved = submissions.approved_complaints()
+            public = os.path.join(directory, "public")
+            snapshot = os.path.join(public, "summary.json")
+            with Store(os.path.join(directory, "barometer.db")) as store:
+                result = tick(
+                    store, [], None, out_dir=public, now=observed_at + 100,
+                    public_snapshot=snapshot,
+                    approved_user_reports=approved,
+                )
+            self.assertEqual(result["approved_user_reports"], 1)
+            with open(snapshot, encoding="utf-8") as handle:
+                public_text = handle.read()
+            self.assertNotIn("NEVER PUBLISH THIS", public_text)
+            payload = json.loads(public_text)
+            self.assertEqual(payload["models"]["claude"]["sources"], {"user": 1})
+            self.assertEqual(
+                payload["models"]["claude"]["categories"], {"quality": 1},
+            )
+
     def test_prune_removes_expired_raw_reports(self):
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "reports.db")
@@ -82,7 +159,9 @@ class ServerTests(unittest.TestCase):
         (public / "index.html").write_text("hello barometer", encoding="utf-8")
         self.db_path = str(Path(self.temp.name) / "private" / "reports.db")
         self.server = BarometerServer(
-            ("127.0.0.1", 0), BarometerHandler, str(public), self.db_path)
+            ("127.0.0.1", 0), BarometerHandler, str(public), self.db_path,
+            rate_limit_secret=b"test-rate-limit-secret",
+        )
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.port = self.server.server_address[1]
@@ -133,6 +212,27 @@ class ServerTests(unittest.TestCase):
             },
         )
         self.assertEqual(status, 403)
+
+    def test_rejected_attempts_are_durably_rate_limited_without_raw_ip(self):
+        headers = {"Content-Type": "application/json"}
+        for _ in range(3):
+            status, _, _ = self.request("POST", "/api/reports", "{bad", headers)
+            self.assertEqual(status, 400)
+        status, response_headers, body = self.request(
+            "POST", "/api/reports", "{bad", headers,
+        )
+        self.assertEqual(status, 429)
+        self.assertIn("Retry-After", response_headers)
+        self.assertIn("too many reports", json.loads(body)["error"])
+        db = sqlite3.connect(self.db_path)
+        try:
+            tokens = [row[0] for row in db.execute(
+                "SELECT author_token FROM submission_attempts"
+            )]
+        finally:
+            db.close()
+        self.assertEqual(len(tokens), 3)
+        self.assertTrue(all("127.0.0.1" not in token for token in tokens))
 
     def test_server_retention_pass_removes_expired_reports(self):
         old = validate_submission(VALID, now=1000.0)

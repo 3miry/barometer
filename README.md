@@ -15,7 +15,7 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - `barometer/catalog.py` — public lab/family metadata and recognised model
   terms used by search and filtering.
 - `barometer/submissions.py` — separately stored, moderated user reports;
-  nothing enters detection automatically.
+  only approved structured fields can enter aggregation, never free text.
 - `serve_barometer.py` and `manage_reports.py` — local form/API evaluation and
   deliberate queue review. See `USER_REPORTS.md`.
 - `tests/` — torture suite: quiet weather doesn't alarm; cascades can't
@@ -46,6 +46,9 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - Generated public artifacts must remain aggregate-only. Reddit content and
   identifiers are processed transiently and are never written to SQLite or
   rendered into public output.
+- Anonymous report throttling stores a keyed opaque author token for at most
+  24 hours. Raw network addresses are neither written to SQLite nor included
+  in the local access log.
 
 ## Tracked model families
 

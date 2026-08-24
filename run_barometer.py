@@ -9,6 +9,7 @@ from barometer.canary import CanaryRunner
 from barometer.cli import tick
 from barometer.public import write_run_status
 from barometer.store import Store
+from barometer.submissions import SubmissionStore
 
 
 def openai_canary(text):
@@ -81,6 +82,11 @@ def parse_args(argv=None):
     parser.add_argument("--public-snapshot", help="aggregate-only JSON path")
     parser.add_argument("--public-history", help="aggregate daily history path")
     parser.add_argument("--status-file", help="last-run health JSON path")
+    parser.add_argument(
+        "--submission-db",
+        help=("moderated user-report database; approved structured reports "
+              "are included without their free-text descriptions"),
+    )
     parser.add_argument("--retention-days", type=int,
                         help="delete private raw reports older than this")
     args = parser.parse_args(argv)
@@ -133,6 +139,11 @@ def main(argv=None) -> None:
     retention_days = args.retention_days
     if observation_profile and retention_days is None:
         retention_days = 30
+    submission_db = args.submission_db
+    if submission_db is None:
+        default_submission_db = Path("observation/private/user_reports.db")
+        if observation_profile or default_submission_db.exists():
+            submission_db = str(default_submission_db)
 
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     Path(out_dir).mkdir(parents=True, exist_ok=True)
@@ -161,6 +172,13 @@ def main(argv=None) -> None:
             # Offline mode is an archive render, so do not discard retained reports
             # merely because the live detector's rolling window has moved on.
             window_days = 21 if adapters or runner else 36500
+            approved_user_reports = []
+            if submission_db is not None:
+                Path(submission_db).parent.mkdir(parents=True, exist_ok=True)
+                with SubmissionStore(submission_db) as submission_store:
+                    approved_user_reports = submission_store.approved_complaints(
+                        since=time.time() - window_days * 86400,
+                    )
             report = tick(
                 store,
                 adapters,
@@ -170,6 +188,7 @@ def main(argv=None) -> None:
                 retention_days=retention_days,
                 public_snapshot=public_snapshot,
                 public_history=public_history,
+                approved_user_reports=approved_user_reports,
             )
     except Exception as exc:
         if status_file is not None:

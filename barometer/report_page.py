@@ -85,7 +85,7 @@ button:disabled{{opacity:.55;cursor:wait}} .status{{color:var(--muted);font-size
   <div class="honeypot" aria-hidden="true"><label for="website">Website</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
   <label class="consent"><input type="checkbox" name="consent" required><span>I understand this report will be privately moderated and may contribute only to non-identifying aggregate statistics. I have not included personal, confidential, or sensitive information.</span></label>
   <div class="actions"><button type="submit">Send report</button><span class="status" id="form-status" role="status" aria-live="polite"></span></div>
-  <p class="privacy">No account, email address, or persistent IP address is requested or stored. Raw reports are scheduled for deletion after 30 days. Public output is aggregate-only.</p>
+  <p class="privacy">No account, email address, or raw IP address is requested or stored. A keyed, opaque anti-abuse token is retained for at most 24 hours; raw reports are scheduled for deletion after 30 days. Public output is aggregate-only.</p>
 </form></main>
 <script>
 (() => {{

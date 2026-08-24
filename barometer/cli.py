@@ -7,7 +7,7 @@ import time
 from .store import Store
 from .canary import CanaryRunner
 from .catalog import MODEL_CATALOG
-from .detect import detect_bursts, classify_tier
+from .detect import Complaint, detect_bursts, classify_tier
 from .dashboard import render_dashboard, render_landing
 from .public import write_public_snapshot
 from .report_page import render_report_form
@@ -16,14 +16,17 @@ def tick(store: Store, adapters: list, runner: CanaryRunner | None = None,
          out_dir: str = ".", window_days: int = 21,
          now: float | None = None, retention_days: int | None = None,
          public_snapshot: str | None = None,
-         public_history: str | None = None) -> dict:
+         public_history: str | None = None,
+         approved_user_reports: list[Complaint] | None = None) -> dict:
     """One pass: ingest -> canaries (if due) -> detect -> tier -> render.
     Returns a small report dict; side effects are the store and the HTML."""
     now = now or time.time()
     since = now - window_days * 86400
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     report: dict = {"new_complaints": 0, "readings": 0, "assessments": {}}
-    ephemeral_complaints = []
+    ephemeral_complaints = list(approved_user_reports or [])
+    if ephemeral_complaints:
+        report["approved_user_reports"] = len(ephemeral_complaints)
 
     for adapter in adapters:
         try:

@@ -2,46 +2,33 @@
 from __future__ import annotations
 
 import argparse
-from collections import defaultdict, deque
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
-import threading
+import secrets
+import sys
 import time
 from urllib.parse import urlsplit
 
 from barometer.submissions import (
-    DuplicateSubmission, SubmissionError, SubmissionStore, validate_submission,
+    ATTEMPT_RETENTION_SECONDS, RATE_LIMITS, DuplicateSubmission,
+    SubmissionError, SubmissionStore, author_token, validate_submission,
 )
-
-
-class RateLimiter:
-    def __init__(self, maximum: int = 3, window_seconds: int = 900):
-        self.maximum = maximum
-        self.window_seconds = window_seconds
-        self._hits = defaultdict(deque)
-        self._lock = threading.Lock()
-
-    def allow(self, key: str, now: float | None = None) -> bool:
-        now = now if now is not None else time.time()
-        cutoff = now - self.window_seconds
-        with self._lock:
-            hits = self._hits[key]
-            while hits and hits[0] < cutoff:
-                hits.popleft()
-            if len(hits) >= self.maximum:
-                return False
-            hits.append(now)
-            return True
 
 
 class BarometerServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, address, handler, public_dir: str, submission_db: str):
+    def __init__(
+            self, address, handler, public_dir: str, submission_db: str,
+            rate_limit_secret: bytes | str | None = None,
+            rate_limits: tuple[tuple[int, int], ...] = RATE_LIMITS,
+    ):
         self.public_dir = str(Path(public_dir).resolve())
         self.submission_db = str(Path(submission_db).resolve())
-        self.rate_limiter = RateLimiter()
+        self.rate_limit_secret = rate_limit_secret or secrets.token_bytes(32)
+        self.rate_limits = rate_limits
         self._last_prune = 0.0
         super().__init__(address, handler)
         self._prune_expired()
@@ -51,6 +38,7 @@ class BarometerServer(ThreadingHTTPServer):
         Path(self.submission_db).parent.mkdir(parents=True, exist_ok=True)
         with SubmissionStore(self.submission_db) as store:
             store.prune(now - 30 * 86400)
+            store.prune_attempts(now - ATTEMPT_RETENTION_SECONDS)
         self._last_prune = now
 
     def service_actions(self) -> None:
@@ -85,12 +73,22 @@ class BarometerHandler(SimpleHTTPRequestHandler):
         )
         super().end_headers()
 
-    def _json(self, status: int, payload: dict) -> None:
+    def log_message(self, format: str, *args) -> None:
+        """Keep client addresses out of the local server's access log."""
+        sys.stderr.write(
+            f"[{self.log_date_time_string()}] {format % args}\n"
+        )
+
+    def _json(
+            self, status: int, payload: dict,
+            extra_headers: dict[str, str] | None = None) -> None:
         body = json.dumps(payload).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        for name, value in (extra_headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(body)
 
@@ -108,8 +106,26 @@ class BarometerHandler(SimpleHTTPRequestHandler):
         if not self._origin_is_same_host():
             self._json(403, {"error": "origin is not allowed"})
             return
-        if not self.server.rate_limiter.allow(self.client_address[0]):
-            self._json(429, {"error": "too many reports; please try again later"})
+        try:
+            token = author_token(
+                self.server.rate_limit_secret, self.client_address[0],
+            )
+            Path(self.server.submission_db).parent.mkdir(
+                parents=True, exist_ok=True,
+            )
+            with SubmissionStore(self.server.submission_db) as store:
+                allowed, retry_after = store.consume_attempt(
+                    token, limits=self.server.rate_limits,
+                )
+            if not allowed:
+                self._json(
+                    429,
+                    {"error": "too many reports; please try again later"},
+                    {"Retry-After": str(retry_after)},
+                )
+                return
+        except SubmissionError:
+            self._json(400, {"error": "unable to identify report source"})
             return
         if not self.headers.get("Content-Type", "").startswith("application/json"):
             self._json(415, {"error": "content type must be application/json"})
@@ -154,11 +170,18 @@ def main(argv=None) -> None:
     public_dir = Path(args.public_dir)
     if not public_dir.is_dir():
         raise SystemExit(f"public directory does not exist: {public_dir}")
-    if args.host not in {"127.0.0.1", "localhost", "::1"}:
+    local_hosts = {"127.0.0.1", "localhost", "::1"}
+    rate_limit_secret = os.environ.get("BAROMETER_RATE_LIMIT_SECRET")
+    if args.host not in local_hosts and not rate_limit_secret:
+        raise SystemExit(
+            "BAROMETER_RATE_LIMIT_SECRET is required for a non-local host"
+        )
+    if args.host not in local_hosts:
         print("WARNING: this stdlib server is for supervised evaluation, not public production")
     server = BarometerServer(
         (args.host, args.port), BarometerHandler,
         str(public_dir), args.submission_db,
+        rate_limit_secret=rate_limit_secret,
     )
     print(f"Barometer available at http://{args.host}:{args.port}/")
     try:
