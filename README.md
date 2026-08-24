@@ -17,10 +17,13 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - `barometer/submissions.py` — separately stored, moderated user reports;
   only approved structured fields can enter aggregation, never free text.
 - `barometer/vocabulary.py` and `barometer/data/behaviour_vocabulary.ledger.json`
-  — validated append-only concept definitions. The initial concepts are all
-  provisional and cannot enter public output yet.
+  — validated append-only concept definitions, hierarchy edges, and coding
+  contract. Broad parents, co-coding, state/change, suspected layer, and
+  elicitation context are explicit. All concepts remain provisional and cannot
+  enter public output yet.
 - `tests/fixtures/behaviour_reports.v1.json` — explicitly synthetic, balanced
-  human-review cases for future ingress and classifier evaluation.
+  human-review cases for future ingress and classifier evaluation; these are
+  reported assertions, not production findings.
 - `SIGNAL_DETECTION.md` — the versioned post-MVP architecture for governed
   behaviour concepts, separate valence, novelty discovery, and PV-inspired
   signal review. It is a design contract, not an activated detector.

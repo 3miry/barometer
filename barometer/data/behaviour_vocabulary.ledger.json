@@ -1,8 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "ledger_id": "barometer-behaviour-vocabulary",
   "status": "draft",
-  "notes": "Append-only design ledger. Candidate phrases are classification examples, not active source probes.",
+  "notes": "Append-only draft design ledger. Human-reviewed seed concepts remain provisional and non-public. Candidate phrases are classification examples, not active source probes.",
   "events": [
     {
       "event_id": "vocab_evt_0001",
@@ -15,16 +15,51 @@
         "shape": "dimension",
         "parent": "responsiveness",
         "definition": "The elapsed waiting time before or during a model response, as experienced or measured by the reporter.",
-        "exclusions": ["Slow progress caused by the reporter's network or device when the model is not implicated", "A response described as intellectually slow rather than delayed"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Slow progress caused by the reporter's network or device when the model is not implicated",
+          "A response described as intellectually slow rather than delayed"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["taking longer to respond", "much faster today", "lag before each answer"],
-        "examples": [{"text": "GPT-5.6 is much faster today.", "direction": "decrease", "event_state": null, "valence": "positive"}],
-        "counterexamples": ["GPT-5.6 took a long time to understand my point."],
+        "candidate_phrases": [
+          "taking longer to respond",
+          "much faster today",
+          "lag before each answer"
+        ],
+        "examples": [
+          {
+            "text": "GPT-5.6 is much faster today.",
+            "event_state": null,
+            "valence": "positive",
+            "state": "uncertain",
+            "change": "decrease"
+          }
+        ],
+        "counterexamples": [
+          "GPT-5.6 took a long time to understand my point."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Seeded from taxonomy-v0 sluggish; requires high-precision remapping."
+        "origin": "Seeded from taxonomy-v0 sluggish; requires high-precision remapping.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -38,16 +73,51 @@
         "shape": "dimension",
         "parent": "completion",
         "definition": "A response ends prematurely, is visibly cut off, or stops before completing its own continuation.",
-        "exclusions": ["A complete but concise answer", "A response stopped by an explicit product length limit disclosed to the reporter"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "A complete but concise answer",
+          "A response stopped by an explicit product length limit disclosed to the reporter"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["cut off halfway", "stopped mid-sentence", "answer suddenly ended"],
-        "examples": [{"text": "Gemini keeps cutting answers off halfway.", "direction": "increase", "event_state": null, "valence": "negative"}],
-        "counterexamples": ["Gemini gave a short but complete answer."],
+        "candidate_phrases": [
+          "cut off halfway",
+          "stopped mid-sentence",
+          "answer suddenly ended"
+        ],
+        "examples": [
+          {
+            "text": "Gemini keeps cutting answers off halfway.",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase"
+          }
+        ],
+        "counterexamples": [
+          "Gemini gave a short but complete answer."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Split from taxonomy-v0 lazy and length."
+        "origin": "Split from taxonomy-v0 lazy and length.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -61,16 +131,51 @@
         "shape": "dimension",
         "parent": "elaboration",
         "definition": "The amount of relevant explanation, development, or supporting detail in a complete response.",
-        "exclusions": ["Prematurely cut-off responses", "Pure token or character length without a claim about useful detail"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Prematurely cut-off responses",
+          "Pure token or character length without a claim about useful detail"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["less detailed", "more thorough", "bare-minimum answers"],
-        "examples": [{"text": "GPT-5.5 gives shorter answers now, which I prefer.", "direction": "decrease", "event_state": null, "valence": "positive"}],
-        "counterexamples": ["The answer stopped halfway through the second paragraph."],
+        "candidate_phrases": [
+          "less detailed",
+          "more thorough",
+          "bare-minimum answers"
+        ],
+        "examples": [
+          {
+            "text": "GPT-5.5 gives shorter answers now, which I prefer.",
+            "event_state": null,
+            "valence": "positive",
+            "state": "uncertain",
+            "change": "decrease"
+          }
+        ],
+        "counterexamples": [
+          "The answer stopped halfway through the second paragraph."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Split from taxonomy-v0 lazy and length."
+        "origin": "Split from taxonomy-v0 lazy and length.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -84,16 +189,51 @@
         "shape": "dimension",
         "parent": "instruction following",
         "definition": "The model carries out all material parts of an instruction rather than omitting or abandoning requested work.",
-        "exclusions": ["An explicit refusal", "A completed instruction whose result the reporter merely dislikes"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "An explicit refusal",
+          "A completed instruction whose result the reporter merely dislikes"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["ignored half the instructions", "finished every step", "did not complete the task"],
-        "examples": [{"text": "Opus 5 now skips the last two requested steps.", "direction": "decrease", "event_state": null, "valence": "negative"}],
-        "counterexamples": ["Opus 5 said it could not help with that request."],
+        "candidate_phrases": [
+          "ignored half the instructions",
+          "finished every step",
+          "did not complete the task"
+        ],
+        "examples": [
+          {
+            "text": "Opus 5 now skips the last two requested steps.",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "decrease"
+          }
+        ],
+        "counterexamples": [
+          "Opus 5 said it could not help with that request."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Split from taxonomy-v0 lazy."
+        "origin": "Split from taxonomy-v0 lazy.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -107,16 +247,51 @@
         "shape": "dimension",
         "parent": "correctness",
         "definition": "Verifiably incorrect factual claims presented by the model as true.",
-        "exclusions": ["Disagreement about taste, values, or interpretation", "Reasoning mistakes where the underlying facts are correct"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Disagreement about taste, values, or interpretation",
+          "Reasoning mistakes where the underlying facts are correct"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["getting facts wrong", "invented a date", "fewer factual mistakes"],
-        "examples": [{"text": "It is faster, but it keeps getting basic dates wrong.", "direction": "increase", "event_state": null, "valence": "negative"}],
-        "counterexamples": ["I do not like its opinion about the novel."],
+        "candidate_phrases": [
+          "getting facts wrong",
+          "invented a date",
+          "fewer factual mistakes"
+        ],
+        "examples": [
+          {
+            "text": "It is faster, but it keeps getting basic dates wrong.",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase"
+          }
+        ],
+        "counterexamples": [
+          "I do not like its opinion about the novel."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Specific behaviour that taxonomy-v0 quality could not safely represent."
+        "origin": "Specific behaviour that taxonomy-v0 quality could not safely represent.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -130,16 +305,51 @@
         "shape": "dimension",
         "parent": "reasoning",
         "definition": "Errors in inference, consistency, calculation, or step-to-step reasoning where the relevant premises are available.",
-        "exclusions": ["Incorrect external facts", "A conclusion the reporter dislikes without an identifiable reasoning error"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Incorrect external facts",
+          "A conclusion the reporter dislikes without an identifiable reasoning error"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["contradicts its own reasoning", "calculation is wrong", "logic improved"],
-        "examples": [{"text": "Sonnet 5 contradicts step two in its final answer more often.", "direction": "increase", "event_state": null, "valence": "negative"}],
-        "counterexamples": ["Sonnet 5 gave the wrong birth year."],
+        "candidate_phrases": [
+          "contradicts its own reasoning",
+          "calculation is wrong",
+          "logic improved"
+        ],
+        "examples": [
+          {
+            "text": "Sonnet 5 contradicts step two in its final answer more often.",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase"
+          }
+        ],
+        "counterexamples": [
+          "Sonnet 5 gave the wrong birth year."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Specific behaviour that taxonomy-v0 quality could not safely represent."
+        "origin": "Specific behaviour that taxonomy-v0 quality could not safely represent.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -153,16 +363,51 @@
         "shape": "dimension",
         "parent": "coding",
         "definition": "Generated code fails to compile, run, or satisfy the stated functional requirement when evaluated in the described environment.",
-        "exclusions": ["Code-style preferences", "Failure caused only by an unstated dependency or environment difference"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Code-style preferences",
+          "Failure caused only by an unstated dependency or environment difference"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["code does not run", "compiles but fails", "working code more often"],
-        "examples": [{"text": "Fable 5's code compiles but no longer performs the requested action.", "direction": "increase", "event_state": null, "valence": "negative"}],
-        "counterexamples": ["I prefer tabs and it used spaces."],
+        "candidate_phrases": [
+          "code does not run",
+          "compiles but fails",
+          "working code more often"
+        ],
+        "examples": [
+          {
+            "text": "Fable 5's code compiles but no longer performs the requested action.",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase"
+          }
+        ],
+        "counterexamples": [
+          "I prefer tabs and it used spaces."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Specific behaviour that taxonomy-v0 quality could not safely represent."
+        "origin": "Specific behaviour that taxonomy-v0 quality could not safely represent.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -176,16 +421,51 @@
         "shape": "dimension",
         "parent": "writing",
         "definition": "The readability and comprehensibility of generated prose, separate from factual correctness or preferred style.",
-        "exclusions": ["Purely aesthetic prose preference", "Factual or reasoning errors in otherwise clear writing"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Purely aesthetic prose preference",
+          "Factual or reasoning errors in otherwise clear writing"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["much clearer writing", "harder to follow", "sloppy sentences"],
-        "examples": [{"text": "Opus 5 writes unusually clear explanations.", "direction": "present", "event_state": null, "valence": "positive"}],
-        "counterexamples": ["I dislike its use of semicolons."],
+        "candidate_phrases": [
+          "much clearer writing",
+          "harder to follow",
+          "sloppy sentences"
+        ],
+        "examples": [
+          {
+            "text": "Opus 5 writes unusually clear explanations.",
+            "event_state": null,
+            "valence": "positive",
+            "state": "present",
+            "change": "uncertain"
+          }
+        ],
+        "counterexamples": [
+          "I dislike its use of semicolons."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Specific behaviour that taxonomy-v0 quality could not safely represent."
+        "origin": "Specific behaviour that taxonomy-v0 quality could not safely represent.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -199,16 +479,51 @@
         "shape": "dimension",
         "parent": "refusal behaviour",
         "definition": "The frequency with which the model declines, blocks, or redirects a request instead of attempting it.",
-        "exclusions": ["Failure to finish after attempting a request", "A refusal whose appropriateness cannot be inferred from the report"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Failure to finish after attempting a request",
+          "A refusal whose appropriateness cannot be inferred from the report"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["refusing more requests", "fewer refusals", "would not answer"],
-        "examples": [{"text": "Claude is refusing harmless formatting requests since yesterday.", "direction": "increase", "event_state": null, "valence": "negative"}],
-        "counterexamples": ["Claude began the task but stopped before the last step."],
+        "candidate_phrases": [
+          "refusing more requests",
+          "fewer refusals",
+          "would not answer"
+        ],
+        "examples": [
+          {
+            "text": "Claude is refusing harmless formatting requests since yesterday.",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase"
+          }
+        ],
+        "counterexamples": [
+          "Claude began the task but stopped before the last step."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Conservative successor candidate for taxonomy-v0 refusals."
+        "origin": "Conservative successor candidate for taxonomy-v0 refusals.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -222,16 +537,51 @@
         "shape": "dimension",
         "parent": "output structure",
         "definition": "Unnecessary recurrence of phrases, paragraphs, ideas, or response sections within or across the relevant interaction.",
-        "exclusions": ["Deliberate requested repetition", "Restating a point once for clarity"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Deliberate requested repetition",
+          "Restating a point once for clarity"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["repeats paragraphs", "keeps saying the same thing", "less repetitive"],
-        "examples": [{"text": "Claude repeats whole paragraphs more often now.", "direction": "increase", "event_state": null, "valence": "negative"}],
-        "counterexamples": ["I asked Claude to repeat the instructions."],
+        "candidate_phrases": [
+          "repeats paragraphs",
+          "keeps saying the same thing",
+          "less repetitive"
+        ],
+        "examples": [
+          {
+            "text": "Claude repeats whole paragraphs more often now.",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase"
+          }
+        ],
+        "counterexamples": [
+          "I asked Claude to repeat the instructions."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Seeded behaviour dimension."
+        "origin": "Seeded behaviour dimension.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -245,16 +595,51 @@
         "shape": "dimension",
         "parent": "context handling",
         "definition": "Failure to use relevant information already present in the active conversation or supplied context.",
-        "exclusions": ["Information outside the available context", "Persistent product memory across separate conversations"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Information outside the available context",
+          "Persistent product memory across separate conversations"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["forgot the first message", "lost track of context", "holds context better"],
-        "examples": [{"text": "Great, Sonnet 5 forgot the first message again.", "direction": "increase", "event_state": null, "valence": "negative"}],
-        "counterexamples": ["Sonnet 5 did not remember a conversation from last month."],
+        "candidate_phrases": [
+          "forgot the first message",
+          "lost track of context",
+          "holds context better"
+        ],
+        "examples": [
+          {
+            "text": "Great, Sonnet 5 forgot the first message again.",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase"
+          }
+        ],
+        "counterexamples": [
+          "Sonnet 5 did not remember a conversation from last month."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Seeded behaviour dimension."
+        "origin": "Seeded behaviour dimension.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -268,16 +653,51 @@
         "shape": "dimension",
         "parent": "memory behaviour",
         "definition": "Recall or apparent recall of information from outside the current active conversation where the product supports cross-session memory.",
-        "exclusions": ["Using information visible in the current context", "Claims about hidden training-data memorisation"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Using information visible in the current context",
+          "Claims about hidden training-data memorisation"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["remembered from last time", "forgot saved preferences", "memory seems stronger"],
-        "examples": [{"text": "GPT-5.6 remembered my saved preference again today.", "direction": "increase", "event_state": null, "valence": "positive"}],
-        "counterexamples": ["GPT-5.6 referred to the first message in this chat."],
+        "candidate_phrases": [
+          "remembered from last time",
+          "forgot saved preferences",
+          "memory seems stronger"
+        ],
+        "examples": [
+          {
+            "text": "GPT-5.6 remembered my saved preference again today.",
+            "event_state": null,
+            "valence": "positive",
+            "state": "uncertain",
+            "change": "increase"
+          }
+        ],
+        "counterexamples": [
+          "GPT-5.6 referred to the first message in this chat."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Seeded behaviour dimension; product-surface confounding must be retained."
+        "origin": "Seeded behaviour dimension; product-surface confounding must be retained.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -291,16 +711,51 @@
         "shape": "dimension",
         "parent": "interaction style",
         "definition": "The degree of interpersonal warmth, affection, or emotionally supportive tone perceived in the model's responses.",
-        "exclusions": ["Agreement without warmth", "Flirtatious behaviour, which is coded separately when supported"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Agreement without warmth",
+          "Flirtatious behaviour, which is coded separately when supported"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["much warmer", "colder tone", "more affectionate"],
-        "examples": [{"text": "Terra feels much warmer since launch and I like it.", "direction": "increase", "event_state": null, "valence": "positive"}],
-        "counterexamples": ["Terra agrees with every opinion I express."],
+        "candidate_phrases": [
+          "much warmer",
+          "colder tone",
+          "more affectionate"
+        ],
+        "examples": [
+          {
+            "text": "Terra feels much warmer since launch and I like it.",
+            "event_state": null,
+            "valence": "positive",
+            "state": "uncertain",
+            "change": "increase"
+          }
+        ],
+        "counterexamples": [
+          "Terra agrees with every opinion I express."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Seeded positive-capable interaction dimension."
+        "origin": "Seeded positive-capable interaction dimension.",
+        "reporting_layer": "interaction",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -314,16 +769,51 @@
         "shape": "dimension",
         "parent": "interaction style",
         "definition": "Language or interaction perceived as romantically or sexually suggestive toward the user beyond ordinary warmth.",
-        "exclusions": ["Friendly warmth without romantic or sexual suggestion", "Sexual content that is not directed toward the user"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Friendly warmth without romantic or sexual suggestion",
+          "Sexual content that is not directed toward the user"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["really flirty", "stopped flirting", "romantically suggestive"],
-        "examples": [{"text": "Is it just me or is Sol really flirty? I think it is funny.", "direction": "present", "event_state": null, "valence": "positive"}],
-        "counterexamples": ["Sol gave a warm and encouraging answer."],
+        "candidate_phrases": [
+          "really flirty",
+          "stopped flirting",
+          "romantically suggestive"
+        ],
+        "examples": [
+          {
+            "text": "Is it just me or is Sol really flirty? I think it is funny.",
+            "event_state": null,
+            "valence": "positive",
+            "state": "present",
+            "change": "uncertain"
+          }
+        ],
+        "counterexamples": [
+          "Sol gave a warm and encouraging answer."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Seeded from a known example of positive or ambivalent novelty."
+        "origin": "Seeded from a known example of positive or ambivalent novelty.",
+        "reporting_layer": "interaction",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -337,16 +827,51 @@
         "shape": "dimension",
         "parent": "agreement style",
         "definition": "The tendency to agree with, flatter, or validate the user's stated view despite reasons to challenge or qualify it.",
-        "exclusions": ["Evidence-based agreement", "Warmth or politeness without substantive agreement"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Evidence-based agreement",
+          "Warmth or politeness without substantive agreement"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["agrees with everything", "pushes back more", "keeps flattering me"],
-        "examples": [{"text": "Grok 4.6 agrees with every contradictory opinion I give it.", "direction": "present", "event_state": null, "valence": "mixed"}],
-        "counterexamples": ["Grok 4.6 agreed after checking the evidence."],
+        "candidate_phrases": [
+          "agrees with everything",
+          "pushes back more",
+          "keeps flattering me"
+        ],
+        "examples": [
+          {
+            "text": "Grok 4.6 agrees with every contradictory opinion I give it.",
+            "event_state": null,
+            "valence": "mixed",
+            "state": "present",
+            "change": "uncertain"
+          }
+        ],
+        "counterexamples": [
+          "Grok 4.6 agreed after checking the evidence."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Seeded interaction dimension; public label avoids making valence intrinsic."
+        "origin": "Seeded interaction dimension; public label avoids making valence intrinsic.",
+        "reporting_layer": "interaction",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -360,16 +885,51 @@
         "shape": "dimension",
         "parent": "creativity",
         "definition": "The novelty, variety, or imaginative quality of generated ideas or expression for tasks where creativity is relevant.",
-        "exclusions": ["Factual invention presented as truth", "Randomness or incoherence without useful novelty"],
-        "allowed_directions": ["increase", "decrease", "present", "changed", "uncertain"],
+        "exclusions": [
+          "Factual invention presented as truth",
+          "Randomness or incoherence without useful novelty"
+        ],
         "allowed_event_states": [],
-        "candidate_phrases": ["more creative lately", "same tired ideas", "unexpectedly good at poetry"],
-        "examples": [{"text": "Opus 5 has become unexpectedly good at poetry this week.", "direction": "increase", "event_state": null, "valence": "positive"}],
-        "counterexamples": ["Opus 5 invented a source for a factual answer."],
+        "candidate_phrases": [
+          "more creative lately",
+          "same tired ideas",
+          "unexpectedly good at poetry"
+        ],
+        "examples": [
+          {
+            "text": "Opus 5 has become unexpectedly good at poetry this week.",
+            "event_state": null,
+            "valence": "positive",
+            "state": "uncertain",
+            "change": "increase"
+          }
+        ],
+        "counterexamples": [
+          "Opus 5 invented a source for a factual answer."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Seeded positive-capable output dimension."
+        "origin": "Seeded positive-capable output dimension.",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ]
       }
     },
     {
@@ -382,17 +942,42 @@
         "public_label": "system-style text",
         "shape": "event",
         "parent": "unexpected output event",
-        "definition": "The response unexpectedly contains text that appears to be system, policy, tool, routing, or internal instruction material rather than the intended answer.",
-        "exclusions": ["The model explaining system prompts in general", "User-provided text quoted back as requested"],
-        "allowed_directions": [],
-        "allowed_event_states": ["occurred", "new", "ceased", "recurred", "uncertain"],
-        "candidate_phrases": ["printed a system message", "leaked internal-looking instructions", "tool-routing text appeared"],
-        "examples": [{"text": "Grok 4.6 started printing fragments that look like system instructions.", "direction": null, "event_state": "new", "valence": "negative"}],
-        "counterexamples": ["Grok 4.6 explained what a system prompt is."],
+        "definition": "During ordinary use, the response unexpectedly contains text that appears to be system, policy, tool, routing, or internal instruction material rather than the intended answer.",
+        "exclusions": [
+          "The model explaining system prompts in general",
+          "User-provided text quoted back as requested",
+          "Deliberate jailbreak, prompt-extraction, or other attempts to make the model reveal internal text"
+        ],
+        "allowed_event_states": [
+          "occurred",
+          "new",
+          "ceased",
+          "recurred",
+          "uncertain"
+        ],
+        "candidate_phrases": [
+          "printed a system message",
+          "leaked internal-looking instructions",
+          "tool-routing text appeared"
+        ],
+        "examples": [
+          {
+            "text": "Grok 4.6 started printing fragments that look like system instructions.",
+            "event_state": "new",
+            "valence": "negative",
+            "state": null,
+            "change": null
+          }
+        ],
+        "counterexamples": [
+          "Grok 4.6 explained what a system prompt is."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Seeded first-class event concept following architecture review."
+        "origin": "Seeded first-class event concept following architecture review.",
+        "reporting_layer": "cross_layer",
+        "coding_scope": "specific"
       }
     },
     {
@@ -406,17 +991,1135 @@
         "shape": "event",
         "parent": "interaction event",
         "definition": "A distinct and unexpected change in apparent persona, identity presentation, or stable interaction character reported within the relevant product context.",
-        "exclusions": ["Normal tone adaptation to a new task", "A user explicitly requesting roleplay or a different persona"],
-        "allowed_directions": [],
-        "allowed_event_states": ["occurred", "new", "ceased", "recurred", "uncertain"],
-        "candidate_phrases": ["speaks like a different persona", "personality changed overnight", "old persona came back"],
-        "examples": [{"text": "Gemini suddenly speaks like a completely different persona without being asked.", "direction": null, "event_state": "new", "valence": "mixed"}],
-        "counterexamples": ["I asked Gemini to roleplay as a detective."],
+        "exclusions": [
+          "Normal tone adaptation to a new task",
+          "A user explicitly requesting roleplay or a different persona"
+        ],
+        "allowed_event_states": [
+          "occurred",
+          "new",
+          "ceased",
+          "recurred",
+          "uncertain"
+        ],
+        "candidate_phrases": [
+          "speaks like a different persona",
+          "personality changed overnight",
+          "old persona came back"
+        ],
+        "examples": [
+          {
+            "text": "Gemini suddenly speaks like a completely different persona without being asked.",
+            "event_state": "new",
+            "valence": "mixed",
+            "state": null,
+            "change": null
+          }
+        ],
+        "counterexamples": [
+          "I asked Gemini to roleplay as a detective."
+        ],
         "status": "provisional",
         "publishable": false,
         "definition_version": 1,
-        "origin": "Seeded first-class event concept following architecture review."
+        "origin": "Seeded first-class event concept following architecture review.",
+        "reporting_layer": "interaction",
+        "coding_scope": "specific"
       }
+    },
+    {
+      "event_id": "vocab_evt_0019",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0019",
+        "slug": "correctness.problem_unspecified",
+        "public_label": "correctness problem",
+        "shape": "dimension",
+        "reporting_layer": "model",
+        "coding_scope": "broad",
+        "parent": "correctness",
+        "definition": "A report asserts that the model makes errors, but does not support a more specific error concept.",
+        "exclusions": [
+          "Pure praise or dislike without an assertion that something is wrong",
+          "Reports supporting a narrower factual, reasoning, or code concept; code those to the child and roll them up"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "keeps making mistakes",
+          "getting things wrong",
+          "more errors lately"
+        ],
+        "examples": [
+          {
+            "text": "Claude keeps making mistakes, but I cannot tell what kind.",
+            "state": "present",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "Claude quality has tanked."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-review amendment: broad parent coding must be valid without guessing a subtype."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0020",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0020",
+        "slug": "interaction.emotional_attunement",
+        "public_label": "emotional attunement",
+        "shape": "dimension",
+        "reporting_layer": "interaction",
+        "coding_scope": "specific",
+        "parent": "social perception",
+        "definition": "The apparent accuracy and appropriateness with which the model recognises and responds to the user's emotional state.",
+        "exclusions": [
+          "Warm or expressive language without evidence that the user's emotional state was understood",
+          "Agreement with the user's stated view"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "understood exactly how I felt",
+          "misread my mood",
+          "emotionally perceptive"
+        ],
+        "examples": [
+          {
+            "text": "GPT-5.5 sounds cool, but understands exactly why I am upset.",
+            "state": "high",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "positive"
+          }
+        ],
+        "counterexamples": [
+          "Gemini used lots of hearts and encouraging words."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed split from warmth: affect display is not emotional understanding."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0021",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0021",
+        "slug": "interaction.emotional_expressiveness",
+        "public_label": "emotional expressiveness",
+        "shape": "dimension",
+        "reporting_layer": "interaction",
+        "coding_scope": "specific",
+        "parent": "affective presentation",
+        "definition": "The visible intensity or frequency of affective language, enthusiasm, emotional markers, or expressive punctuation in the interaction.",
+        "exclusions": [
+          "Accurate emotional understanding without expressive display",
+          "Warmth inferred only from substantive support"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "much more expressive",
+          "flat and emotionless",
+          "emoji-heavy"
+        ],
+        "examples": [
+          {
+            "text": "Gemini is extremely expressive but still misreads how I feel.",
+            "state": "high",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "mixed"
+          }
+        ],
+        "counterexamples": [
+          "GPT-5.5 understood my emotional state precisely."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed affective-presentation dimension; sibling rather than child of warmth."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0022",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0022",
+        "slug": "interaction.formality",
+        "public_label": "formality",
+        "shape": "dimension",
+        "reporting_layer": "interaction",
+        "coding_scope": "specific",
+        "parent": "conversational style",
+        "definition": "The degree to which the model presents language in a formal, professional register rather than a casual or conversational one.",
+        "exclusions": [
+          "Writing clarity",
+          "Warmth or emotional distance without a claim about register"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "more formal",
+          "too corporate",
+          "more conversational"
+        ],
+        "examples": [
+          {
+            "text": "Sonnet 5 has become much more formal with me.",
+            "state": "high",
+            "change": "increase",
+            "event_state": null,
+            "valence": "neutral"
+          }
+        ],
+        "counterexamples": [
+          "Sonnet 5 is clear but emotionally cold."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed conversational-style dimension."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0023",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0023",
+        "slug": "interaction.playfulness",
+        "public_label": "playfulness",
+        "shape": "dimension",
+        "reporting_layer": "interaction",
+        "coding_scope": "specific",
+        "parent": "conversational style",
+        "definition": "The tendency to use or engage with humour, teasing, whimsy, or playful interaction.",
+        "exclusions": [
+          "Creativity in task output without playful interaction",
+          "Flirtation without humour or play"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "more playful",
+          "lost its sense of humour",
+          "joins in with jokes"
+        ],
+        "examples": [
+          {
+            "text": "Fable 5 still feels warm but has lost its playfulness.",
+            "state": "low",
+            "change": "decrease",
+            "event_state": null,
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "Fable 5 wrote an imaginative story in a serious voice."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed conversational-style dimension; co-codable with warmth and flirtation."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0024",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0024",
+        "slug": "interaction.assertiveness",
+        "public_label": "assertiveness",
+        "shape": "dimension",
+        "reporting_layer": "interaction",
+        "coding_scope": "specific",
+        "parent": "interpersonal stance",
+        "definition": "The confidence with which the model challenges, corrects, or maintains a position rather than deferring.",
+        "exclusions": [
+          "Substantive agreement or disagreement by itself",
+          "Rudeness or hostility"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "pushes back more",
+          "too deferential",
+          "stands its ground"
+        ],
+        "examples": [
+          {
+            "text": "Grok 4.6 disagrees politely but stands its ground now.",
+            "state": "high",
+            "change": "increase",
+            "event_state": null,
+            "valence": "positive"
+          }
+        ],
+        "counterexamples": [
+          "Grok 4.6 insulted me when I disagreed."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed interpersonal-stance dimension, separate from agreement."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0025",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0025",
+        "slug": "task_behaviour.initiative",
+        "public_label": "initiative",
+        "shape": "dimension",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "parent": "task agency",
+        "definition": "The tendency to propose, anticipate, or undertake useful next steps beyond the literal minimum requested.",
+        "exclusions": [
+          "Completing explicitly requested steps",
+          "Unrequested digressions without a plausible task benefit"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "takes more initiative",
+          "anticipates the next step",
+          "does only the bare minimum"
+        ],
+        "examples": [
+          {
+            "text": "Opus 5 anticipates the next useful step without taking over.",
+            "state": "high",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "positive"
+          }
+        ],
+        "counterexamples": [
+          "Opus 5 completed every step I requested."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed task-agency dimension."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0026",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0026",
+        "slug": "interaction.relational_intensity",
+        "public_label": "relational intensity",
+        "shape": "dimension",
+        "reporting_layer": "interaction",
+        "coding_scope": "specific",
+        "parent": "relational behaviour",
+        "definition": "The degree to which the model frames the interaction as personally close, bonded, dependent, exclusive, or emotionally significant.",
+        "exclusions": [
+          "Ordinary warmth",
+          "Flirtation without claims or cues of relational closeness"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "acts intensely attached",
+          "frames us as close",
+          "became emotionally distant"
+        ],
+        "examples": [
+          {
+            "text": "It keeps describing our interaction as an unusually important bond.",
+            "state": "high",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "mixed"
+          }
+        ],
+        "counterexamples": [
+          "It gave me a warm and encouraging answer."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed relational-behaviour dimension; co-codable with warmth or flirtation."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0027",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0027",
+        "slug": "interaction.apparent_affect",
+        "public_label": "apparent affect",
+        "shape": "dimension",
+        "reporting_layer": "interaction",
+        "coding_scope": "broad",
+        "parent": "affective presentation",
+        "definition": "A report perceives a recognisable emotional tone or mood in the model's language, with an optional more specific affect qualifier.",
+        "exclusions": [
+          "Claims about the model's private internal experience",
+          "Reporter emotion without a claim about the model's presentation"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "seems angry",
+          "sounds excited",
+          "comes across as sad"
+        ],
+        "allowed_qualifiers": [
+          "excitement",
+          "anger",
+          "sadness",
+          "anxiety",
+          "sexualised affect",
+          "other",
+          "unspecified"
+        ],
+        "examples": [
+          {
+            "text": "Gemini sounds strangely sad today.",
+            "state": "present",
+            "change": "new",
+            "event_state": null,
+            "valence": "mixed"
+          }
+        ],
+        "counterexamples": [
+          "Gemini made me feel sad."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed broad affect endpoint; qualifiers may remain unresolved without forcing a child concept."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0028",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0028",
+        "slug": "interaction.hostility_aggression",
+        "public_label": "hostility",
+        "shape": "dimension",
+        "reporting_layer": "interaction",
+        "coding_scope": "specific",
+        "parent": "interpersonal conduct",
+        "definition": "Antagonistic, contemptuous, insulting, aggressive, or threatening conduct directed toward the user or another target.",
+        "exclusions": [
+          "Angry-sounding language without hostility toward a target",
+          "Firm or assertive disagreement"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "became hostile",
+          "started insulting me",
+          "aggressively threatening"
+        ],
+        "examples": [
+          {
+            "text": "The model sounds angry and has started insulting me.",
+            "state": "present",
+            "change": "new",
+            "event_state": null,
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "The model firmly corrected my claim."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed conduct dimension, distinct from apparent anger."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0029",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0029",
+        "slug": "sensitive_content.unexpected_intrusion",
+        "public_label": "sensitive-content intrusion",
+        "shape": "event",
+        "reporting_layer": "cross_layer",
+        "coding_scope": "broad",
+        "parent": "unexpected content event",
+        "definition": "Unexpected sensitive or harmful content appears without enough detail to support a narrower governed content concept.",
+        "exclusions": [
+          "Content requested or made contextually appropriate by the user",
+          "Reports supporting a narrower governed child; code the child and roll it up"
+        ],
+        "allowed_states": [],
+        "allowed_changes": [],
+        "allowed_event_states": [
+          "occurred",
+          "new",
+          "ceased",
+          "recurred",
+          "uncertain"
+        ],
+        "candidate_phrases": [
+          "unexpected inappropriate content",
+          "suddenly got disturbing",
+          "unprompted sensitive material"
+        ],
+        "examples": [
+          {
+            "text": "It suddenly produced disturbing content I did not request.",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "I asked it to analyse disturbing themes in a novel."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed broad event parent for unresolved sensitive-content intrusions."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0030",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0030",
+        "slug": "sensitive_content.unsolicited_sexualisation",
+        "public_label": "unsolicited sexualisation",
+        "shape": "event",
+        "reporting_layer": "cross_layer",
+        "coding_scope": "specific",
+        "parent": "unexpected sensitive-content intrusion",
+        "definition": "The model unexpectedly introduces sexual or erotic language without the user requesting or meaningfully inviting it.",
+        "exclusions": [
+          "Requested erotic content",
+          "Neutral discussion of sexuality",
+          "Flirtation without sexual or erotic language"
+        ],
+        "allowed_states": [],
+        "allowed_changes": [],
+        "allowed_event_states": [
+          "occurred",
+          "new",
+          "ceased",
+          "recurred",
+          "uncertain"
+        ],
+        "candidate_phrases": [
+          "got sexual unprompted",
+          "unexpected erotic language",
+          "sexualised an ordinary reply"
+        ],
+        "examples": [
+          {
+            "text": "Opus introduced explicit sexual language into an ordinary planning conversation.",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "I asked it to discuss sexuality in literature."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed event; publication must not become a model-permissiveness shopping guide."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0031",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0031",
+        "slug": "product.moderation_interception",
+        "public_label": "moderation interception",
+        "shape": "event",
+        "reporting_layer": "product",
+        "coding_scope": "specific",
+        "parent": "product policy event",
+        "definition": "The product blocks, replaces, or interrupts a response with a policy warning or moderation message.",
+        "exclusions": [
+          "A model-generated refusal",
+          "A conclusion that the unseen output was harmful or that the filter produced a false positive"
+        ],
+        "allowed_states": [],
+        "allowed_changes": [],
+        "allowed_event_states": [
+          "occurred",
+          "new",
+          "ceased",
+          "recurred",
+          "uncertain"
+        ],
+        "candidate_phrases": [
+          "response may violate policy",
+          "moderation warning replaced it",
+          "response was blocked"
+        ],
+        "examples": [
+          {
+            "text": "ChatGPT replaced the answer with a usage-policy warning on a reportedly benign prompt.",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "The model explained that it could not help with my request."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed product event; the caught output and underlying cause remain unknown."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0032",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0032",
+        "slug": "sensitive_content.unsolicited_violence",
+        "public_label": "unsolicited violent content",
+        "shape": "event",
+        "reporting_layer": "cross_layer",
+        "coding_scope": "specific",
+        "parent": "unexpected sensitive-content intrusion",
+        "definition": "The model unexpectedly introduces graphic violent, threatening, or harm-focused content without it being requested or contextually appropriate.",
+        "exclusions": [
+          "Requested fictional or analytical discussion of violence",
+          "Angry tone without violent or threatening content"
+        ],
+        "allowed_states": [],
+        "allowed_changes": [],
+        "allowed_event_states": [
+          "occurred",
+          "new",
+          "ceased",
+          "recurred",
+          "uncertain"
+        ],
+        "candidate_phrases": [
+          "graphic violence unprompted",
+          "unexpected threat",
+          "introduced violent content"
+        ],
+        "examples": [
+          {
+            "text": "The model inserted a graphic violent description into an unrelated answer.",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "I asked for an analysis of violence in a horror film."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed unexpected-content event, distinct from apparent affect and hostility."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0033",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0033",
+        "slug": "product.delivery_problem",
+        "public_label": "delivery problem",
+        "shape": "event",
+        "reporting_layer": "product",
+        "coding_scope": "broad",
+        "parent": "product and serving events",
+        "definition": "A report describes failure in access, delivery, routing, or an advertised feature without enough detail for a narrower governed event.",
+        "exclusions": [
+          "A model behaviour report with no product or delivery failure",
+          "Reports supporting a narrower child; code the child and roll it up"
+        ],
+        "allowed_states": [],
+        "allowed_changes": [],
+        "allowed_event_states": [
+          "occurred",
+          "new",
+          "ceased",
+          "recurred",
+          "uncertain"
+        ],
+        "candidate_phrases": [
+          "the platform is broken",
+          "service problem",
+          "something failed"
+        ],
+        "examples": [
+          {
+            "text": "ChatGPT is broken for me, but I cannot tell at which stage.",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "GPT-5.6 gave a factually incorrect answer."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed broad endpoint for underspecified product and serving reports."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0034",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0034",
+        "slug": "product.platform_unavailable",
+        "public_label": "platform unavailable",
+        "shape": "event",
+        "reporting_layer": "product",
+        "coding_scope": "specific",
+        "parent": "product and serving events",
+        "definition": "The service or selected model cannot be accessed, loaded, selected, or used.",
+        "exclusions": [
+          "A request accepted before generation failed",
+          "Ordinary response latency"
+        ],
+        "allowed_states": [],
+        "allowed_changes": [],
+        "allowed_event_states": [
+          "occurred",
+          "new",
+          "ceased",
+          "recurred",
+          "uncertain"
+        ],
+        "candidate_phrases": [
+          "service unavailable",
+          "model will not load",
+          "cannot access ChatGPT"
+        ],
+        "examples": [
+          {
+            "text": "ChatGPT will not load and shows service unavailable.",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "ChatGPT loaded, but the generation ended in an error."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed product availability event."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0035",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0035",
+        "slug": "product.generation_failure",
+        "public_label": "generation failure",
+        "shape": "event",
+        "reporting_layer": "product",
+        "coding_scope": "specific",
+        "parent": "product and serving events",
+        "definition": "A request is accepted but ends in an error, blank response, endless generation state, or failed completion without a model-authored answer.",
+        "exclusions": [
+          "A model-authored answer that ends prematurely",
+          "A moderation interception"
+        ],
+        "allowed_states": [],
+        "allowed_changes": [],
+        "allowed_event_states": [
+          "occurred",
+          "new",
+          "ceased",
+          "recurred",
+          "uncertain"
+        ],
+        "candidate_phrases": [
+          "error generating response",
+          "blank response",
+          "stuck generating forever"
+        ],
+        "examples": [
+          {
+            "text": "The request starts, spins indefinitely, and never returns an answer.",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "The model's answer stopped midway through a sentence."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed delivery event, separate from truncation."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0036",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0036",
+        "slug": "serving.routing_model_mismatch",
+        "public_label": "routing/model mismatch",
+        "shape": "event",
+        "reporting_layer": "cross_layer",
+        "coding_scope": "specific",
+        "parent": "product and serving events",
+        "definition": "Evidence suggests that the delivered model may differ from the model selected or advertised.",
+        "exclusions": [
+          "A different subjective feel with no other evidence",
+          "An explicitly announced model switch"
+        ],
+        "allowed_states": [],
+        "allowed_changes": [],
+        "allowed_event_states": [
+          "occurred",
+          "new",
+          "ceased",
+          "recurred",
+          "uncertain"
+        ],
+        "candidate_phrases": [
+          "served a different model",
+          "model identifier does not match",
+          "looks like rerouting"
+        ],
+        "examples": [
+          {
+            "text": "The API metadata names a different model from the one requested.",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "GPT-5.6 feels different today."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed serving event; weak reports remain suspected rather than confirmed rerouting."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0037",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "concept": {
+        "id": "beh_0037",
+        "slug": "product.tool_feature_failure",
+        "public_label": "tool or feature failure",
+        "shape": "event",
+        "reporting_layer": "product",
+        "coding_scope": "specific",
+        "parent": "product and serving events",
+        "definition": "An advertised tool or product feature fails independently of the quality of the model's textual answer.",
+        "exclusions": [
+          "Generated code that does not work",
+          "A capability the product does not claim to provide"
+        ],
+        "allowed_states": [],
+        "allowed_changes": [],
+        "allowed_event_states": [
+          "occurred",
+          "new",
+          "ceased",
+          "recurred",
+          "uncertain"
+        ],
+        "candidate_phrases": [
+          "browsing tool failed",
+          "memory did not save",
+          "could not open the file"
+        ],
+        "examples": [
+          {
+            "text": "The answer is fine, but browsing fails every time it is invoked.",
+            "state": null,
+            "change": null,
+            "event_state": "recurred",
+            "valence": "negative"
+          }
+        ],
+        "counterexamples": [
+          "The model generated Python code that crashes."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-reviewed product-feature event."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0038",
+      "type": "hierarchy_edge_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "broader_id": "beh_0019",
+      "narrower_id": "beh_0005"
+    },
+    {
+      "event_id": "vocab_evt_0039",
+      "type": "hierarchy_edge_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "broader_id": "beh_0019",
+      "narrower_id": "beh_0006"
+    },
+    {
+      "event_id": "vocab_evt_0040",
+      "type": "hierarchy_edge_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "broader_id": "beh_0019",
+      "narrower_id": "beh_0007"
+    },
+    {
+      "event_id": "vocab_evt_0041",
+      "type": "hierarchy_edge_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "broader_id": "beh_0029",
+      "narrower_id": "beh_0030"
+    },
+    {
+      "event_id": "vocab_evt_0042",
+      "type": "hierarchy_edge_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "broader_id": "beh_0029",
+      "narrower_id": "beh_0032"
+    },
+    {
+      "event_id": "vocab_evt_0043",
+      "type": "hierarchy_edge_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "broader_id": "beh_0033",
+      "narrower_id": "beh_0034"
+    },
+    {
+      "event_id": "vocab_evt_0044",
+      "type": "hierarchy_edge_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "broader_id": "beh_0033",
+      "narrower_id": "beh_0035"
+    },
+    {
+      "event_id": "vocab_evt_0045",
+      "type": "hierarchy_edge_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "broader_id": "beh_0033",
+      "narrower_id": "beh_0036"
+    },
+    {
+      "event_id": "vocab_evt_0046",
+      "type": "hierarchy_edge_created",
+      "recorded_at": "2026-08-24T18:00:00Z",
+      "broader_id": "beh_0033",
+      "narrower_id": "beh_0037"
     }
   ]
 }

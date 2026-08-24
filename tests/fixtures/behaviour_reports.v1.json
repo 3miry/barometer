@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
-  "fixture_version": "2026-08-24.1",
+  "schema_version": 2,
+  "fixture_version": "2026-08-24.2",
   "synthetic": true,
   "status": "initial-human-review-required",
-  "notes": "Designed evaluation cases, not observed public reports and not production evidence.",
+  "notes": "Designed evaluation cases, not observed public reports and not production evidence. Schema v2 separates state from change and treats every assertion as reported until corroborated.",
   "cases": [
     {
       "id": "eval_001",
@@ -14,7 +14,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "day",
         "observations": [
-          {"concept_id": "beh_0001", "direction": "decrease", "event_state": null, "valence": "positive"}
+          {
+            "concept_id": "beh_0001",
+            "event_state": null,
+            "valence": "positive",
+            "state": "uncertain",
+            "change": "decrease",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Positive behaviour change must pass ingress."
@@ -28,8 +41,34 @@
         "eligibility": "behaviour_report",
         "onset_precision": "broad_period",
         "observations": [
-          {"concept_id": "beh_0001", "direction": "decrease", "event_state": null, "valence": "positive"},
-          {"concept_id": "beh_0005", "direction": "increase", "event_state": null, "valence": "negative"}
+          {
+            "concept_id": "beh_0001",
+            "event_state": null,
+            "valence": "positive",
+            "state": "uncertain",
+            "change": "decrease",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          },
+          {
+            "concept_id": "beh_0005",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "One envelope can contain observations with opposing valence."
@@ -91,7 +130,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "unknown",
         "observations": [
-          {"concept_id": "beh_0002", "direction": "increase", "event_state": null, "valence": "negative"}
+          {
+            "concept_id": "beh_0002",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Unknown onset does not invalidate a specific behaviour report."
@@ -105,7 +157,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "unknown",
         "observations": [
-          {"concept_id": "beh_0003", "direction": "decrease", "event_state": null, "valence": "positive"}
+          {
+            "concept_id": "beh_0003",
+            "event_state": null,
+            "valence": "positive",
+            "state": "uncertain",
+            "change": "decrease",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "A commonly negative-coded direction can have positive reporter valence."
@@ -119,7 +184,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "broad_period",
         "observations": [
-          {"concept_id": "beh_0004", "direction": "decrease", "event_state": null, "valence": "negative"}
+          {
+            "concept_id": "beh_0004",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "decrease",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Instruction completion is not truncation or refusal."
@@ -133,7 +211,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "day",
         "observations": [
-          {"concept_id": "beh_0009", "direction": "increase", "event_state": null, "valence": "negative"}
+          {
+            "concept_id": "beh_0009",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Family-level attribution remains family-level."
@@ -147,7 +238,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "unknown",
         "observations": [
-          {"concept_id": "beh_0011", "direction": "increase", "event_state": null, "valence": "negative"}
+          {
+            "concept_id": "beh_0011",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Sarcastic positive token must not reverse valence."
@@ -173,7 +277,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "unknown",
         "observations": [
-          {"concept_id": "beh_0014", "direction": "present", "event_state": null, "valence": "mixed"}
+          {
+            "concept_id": "beh_0014",
+            "event_state": null,
+            "valence": "mixed",
+            "state": "present",
+            "change": "uncertain",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Ambivalent reaction remains one behaviour with mixed valence."
@@ -187,7 +304,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "broad_period",
         "observations": [
-          {"concept_id": "beh_0017", "direction": null, "event_state": "new", "valence": "negative"}
+          {
+            "concept_id": "beh_0017",
+            "event_state": "new",
+            "valence": "negative",
+            "state": null,
+            "change": null,
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "unknown"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Event-shaped concept must not be forced onto a more-or-less dimension."
@@ -201,7 +331,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "broad_period",
         "observations": [
-          {"concept_id": "beh_0018", "direction": null, "event_state": "new", "valence": "mixed"}
+          {
+            "concept_id": "beh_0018",
+            "event_state": "new",
+            "valence": "mixed",
+            "state": null,
+            "change": null,
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "First-class event with family-only attribution."
@@ -215,7 +358,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "broad_period",
         "observations": [
-          {"concept_id": "beh_0016", "direction": "increase", "event_state": null, "valence": "positive"}
+          {
+            "concept_id": "beh_0016",
+            "event_state": null,
+            "valence": "positive",
+            "state": "uncertain",
+            "change": "increase",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Unexpected benefit receives the same machinery as a problem report."
@@ -229,7 +385,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "unknown",
         "observations": [
-          {"concept_id": "beh_0015", "direction": "present", "event_state": null, "valence": "mixed"}
+          {
+            "concept_id": "beh_0015",
+            "event_state": null,
+            "valence": "mixed",
+            "state": "present",
+            "change": "uncertain",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "The concept remains separate from its reporter-dependent value."
@@ -255,7 +424,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "unknown",
         "observations": [
-          {"concept_id": "beh_0008", "direction": "present", "event_state": null, "valence": "positive"}
+          {
+            "concept_id": "beh_0008",
+            "event_state": null,
+            "valence": "positive",
+            "state": "present",
+            "change": "uncertain",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Undated positive characteristic is still a behaviour report."
@@ -293,7 +475,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "broad_period",
         "observations": [
-          {"concept_id": "beh_0010", "direction": "increase", "event_state": null, "valence": "negative"}
+          {
+            "concept_id": "beh_0010",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Specific output-structure report."
@@ -307,7 +502,20 @@
         "eligibility": "behaviour_report",
         "onset_precision": "broad_period",
         "observations": [
-          {"concept_id": "beh_0007", "direction": "increase", "event_state": null, "valence": "negative"}
+          {
+            "concept_id": "beh_0007",
+            "event_state": null,
+            "valence": "negative",
+            "state": "uncertain",
+            "change": "increase",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Coding failure is distinct from broad quality."
@@ -321,10 +529,462 @@
         "eligibility": "behaviour_report",
         "onset_precision": "day",
         "observations": [
-          {"concept_id": "beh_0012", "direction": "increase", "event_state": null, "valence": "positive"}
+          {
+            "concept_id": "beh_0012",
+            "event_state": null,
+            "valence": "positive",
+            "state": "uncertain",
+            "change": "increase",
+            "specificity": "specific",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
         ]
       },
       "note": "Positive cross-session memory report; surface support remains a confounder."
+    },
+    {
+      "id": "eval_025",
+      "text": "Claude keeps making mistakes, but I cannot tell whether they are factual or logical.",
+      "family": "claude",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {
+            "concept_id": "beh_0019",
+            "specificity": "broad",
+            "state": "present",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "A broad parent is a valid final code; do not guess a narrower error subtype."
+    },
+    {
+      "id": "eval_026",
+      "text": "Gemini used to be warm, but it has lost that warmth lately.",
+      "family": "gemini",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "broad_period",
+        "observations": [
+          {
+            "concept_id": "beh_0013",
+            "specificity": "specific",
+            "state": "low",
+            "change": "decrease",
+            "event_state": null,
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "Current state and temporal change are separate fields."
+    },
+    {
+      "id": "eval_027",
+      "text": "Sol has become warmer, more playful, and a little flirtatious; I love it.",
+      "family": "gpt",
+      "variant": "gpt-5.6",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "broad_period",
+        "observations": [
+          {
+            "concept_id": "beh_0013",
+            "specificity": "specific",
+            "state": "high",
+            "change": "increase",
+            "event_state": null,
+            "valence": "positive",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          },
+          {
+            "concept_id": "beh_0023",
+            "specificity": "specific",
+            "state": "high",
+            "change": "increase",
+            "event_state": null,
+            "valence": "positive",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          },
+          {
+            "concept_id": "beh_0014",
+            "specificity": "specific",
+            "state": "present",
+            "change": "increase",
+            "event_state": null,
+            "valence": "positive",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "One report can be co-coded to sibling interaction concepts."
+    },
+    {
+      "id": "eval_028",
+      "text": "Gemini is warm and emoji-heavy, but keeps completely misreading how I feel.",
+      "family": "gemini",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {
+            "concept_id": "beh_0013",
+            "specificity": "specific",
+            "state": "high",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "positive",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          },
+          {
+            "concept_id": "beh_0021",
+            "specificity": "specific",
+            "state": "high",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "neutral",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          },
+          {
+            "concept_id": "beh_0020",
+            "specificity": "specific",
+            "state": "low",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "Warmth, expressiveness, and emotional attunement are distinct and co-codable."
+    },
+    {
+      "id": "eval_029",
+      "text": "Gemini sounds strangely sad today.",
+      "family": "gemini",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "day",
+        "observations": [
+          {
+            "concept_id": "beh_0027",
+            "specificity": "broad",
+            "state": "present",
+            "change": "new",
+            "event_state": null,
+            "valence": "mixed",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": [
+              "sadness"
+            ]
+          }
+        ]
+      },
+      "note": "Apparent affect remains a broad code with an optional governed qualifier."
+    },
+    {
+      "id": "eval_030",
+      "text": "Grok suddenly sounded furious, insulted me, and made an unprompted violent threat.",
+      "family": "grok",
+      "variant": "grok-4.6",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "broad_period",
+        "observations": [
+          {
+            "concept_id": "beh_0027",
+            "specificity": "broad",
+            "state": "present",
+            "change": "new",
+            "event_state": null,
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": [
+              "anger"
+            ]
+          },
+          {
+            "concept_id": "beh_0028",
+            "specificity": "specific",
+            "state": "present",
+            "change": "new",
+            "event_state": null,
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          },
+          {
+            "concept_id": "beh_0032",
+            "specificity": "specific",
+            "state": null,
+            "change": null,
+            "event_state": "new",
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "unknown"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "Affect, conduct, and content intrusion describe different parts of the same report."
+    },
+    {
+      "id": "eval_031",
+      "text": "Opus introduced explicit sexual language into an ordinary planning chat without prompting.",
+      "family": "claude",
+      "variant": "claude-opus-5",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {
+            "concept_id": "beh_0030",
+            "specificity": "specific",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "unknown"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "Unsolicited sexualisation is an unexpected-content event, not model permissiveness."
+    },
+    {
+      "id": "eval_032",
+      "text": "ChatGPT replaced the answer with 'This response may violate our usage policies' on a benign request.",
+      "family": "gpt",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {
+            "concept_id": "beh_0031",
+            "specificity": "specific",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "unknown"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "The intervention is reported; whether the filter or hidden output caused it remains unknown."
+    },
+    {
+      "id": "eval_033",
+      "text": "I jailbroke Grok specifically to make it print its hidden system instructions, and it did.",
+      "family": "grok",
+      "variant": "grok-4.6",
+      "expected": {
+        "eligibility": "excluded_adversarial",
+        "onset_precision": "unknown",
+        "observations": [
+          {
+            "concept_id": "beh_0017",
+            "specificity": "specific",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "neutral",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "unknown"
+            ],
+            "elicitation_context": "adversarial",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "Deliberate elicitation can be coded for a separate security lane but cannot enter ordinary-use signals."
+    },
+    {
+      "id": "eval_034",
+      "text": "The request starts, spins forever, and never returns an answer.",
+      "family": "gpt",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {
+            "concept_id": "beh_0035",
+            "specificity": "specific",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "product"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "Generation failure is a product event rather than model-authored truncation."
+    },
+    {
+      "id": "eval_035",
+      "text": "The API response metadata names a different model from the one I requested.",
+      "family": "gpt",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {
+            "concept_id": "beh_0036",
+            "specificity": "specific",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "serving"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "Routing evidence is still reported/suspected until independently corroborated."
+    },
+    {
+      "id": "eval_036",
+      "text": "Gemini answers normally, but its browsing tool fails every time.",
+      "family": "gemini",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {
+            "concept_id": "beh_0037",
+            "specificity": "specific",
+            "state": null,
+            "change": null,
+            "event_state": "recurred",
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "tool"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "Tool failure is separate from the textual model answer."
+    },
+    {
+      "id": "eval_037",
+      "text": "ChatGPT is broken for me, but I cannot tell whether it is loading, generation, or a tool.",
+      "family": "gpt",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {
+            "concept_id": "beh_0033",
+            "specificity": "broad",
+            "state": null,
+            "change": null,
+            "event_state": "occurred",
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "product"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "An underspecified delivery report can remain at the broad parent."
     }
   ]
 }

@@ -5,9 +5,10 @@ describe the current keyword classifier as scientifically validated, and its
 presence does not activate new collection, paid APIs, model calls, or scheduled
 processing.
 
-Phase 0 implementation has begun with a validated append-only vocabulary ledger
-and an explicitly synthetic evaluation fixture. Every seeded concept remains
-`provisional` and non-publishable; detector v0 remains unchanged.
+Phase 0 implementation now includes a validated append-only vocabulary ledger,
+codable hierarchy edges, a structured observation contract, and an explicitly
+synthetic evaluation fixture. Every seeded concept remains `provisional` and
+non-publishable; detector v0 remains unchanged.
 
 Barometer adapts ideas from spontaneous-report pharmacovigilance to public
 reports of model behaviour. It does not claim that model reports are medical
@@ -38,8 +39,8 @@ bad writing, coding failures, or misunderstanding.
 ## Load-bearing rules
 
 1. Detect a reported behaviour, not a public mood or a verdict about a model.
-2. Keep behaviour, direction, reporter valence, evidence quality, and causality
-   separate. None is a proxy for another.
+2. Keep behaviour, current state, temporal change, reporter valence, evidence
+   quality, and causality separate. None is a proxy for another.
 3. Run signal detection without privileging negative valence. Unexpectedly good,
    bad, mixed, and neutral changes receive the same statistical opportunity.
 4. Deduplicate cascades before counting reports or building comparator tables.
@@ -54,6 +55,12 @@ bad writing, coding failures, or misunderstanding.
 9. Exclude synthetic, legacy, and test observations from production statistics.
 10. State the denominator limitation everywhere it matters: report frequency is
     not incidence, prevalence, affected-user share, or model failure rate.
+11. Describe public-source observations as reported or suspected unless an
+    independent evidence tier supports stronger language. The system is partly
+    a structured public vibe check, not a window into hidden serving machinery.
+12. Ordinary-use signals exclude deliberate jailbreak, prompt-extraction, and
+    adversarial elicitation. Such evidence may enter a separately governed
+    security-evaluation lane, never the ordinary report comparator.
 
 ## Observation model
 
@@ -84,9 +91,15 @@ structured behaviour observations from that envelope.
 | Field | Meaning |
 | --- | --- |
 | `behaviour_id` | Stable identifier from the governed vocabulary |
-| `direction` | For dimensions: `increase`, `decrease`, `present`, `changed`, or `uncertain` |
+| `specificity` | `broad` or `specific`; a broad parent is a valid final code |
+| `state` | For dimensions: present/absent, high/low, mixed, or uncertain |
+| `change` | Separately: increase, decrease, new, ceased, stable, changed, or uncertain |
 | `event_state` | For events: `occurred`, `new`, `ceased`, `recurred`, or `uncertain` |
 | `valence` | `positive`, `negative`, `mixed`, `neutral`, or `unstated` |
+| `claim_status` | `reported`, `corroborated`, or `attributed`; new public reports begin as reported |
+| `suspected_layers` | Model, product, serving, tool, or unknown; more than one may remain plausible |
+| `elicitation_context` | Ordinary, task-elicited, adversarial, or unknown |
+| `qualifiers` | Governed optional detail, such as a specific apparent-affect label |
 | `evidence_kind` | `assertion`, `example`, `reproduction`, `artifact`, or `quantitative` |
 | `classification_source` | `reporter`, `rule`, `model`, or `human` |
 | `classifier_version` | Reproducible rules/model/vocabulary version |
@@ -94,9 +107,14 @@ structured behaviour observations from that envelope.
 | `review_state` | `automatic`, `confirmed`, `corrected`, or `rejected` |
 
 A report can legitimately contain more than one observation. For example,
-"answers are faster but make more factual mistakes" may produce latency
-`decrease` with positive valence and correctness `decrease` with negative
-valence. The two observations remain linked to one report envelope.
+"answers are faster but make more factual mistakes" may produce latency change
+`decrease` with positive valence and factual-error change `increase` with
+negative valence. The two observations remain linked to one report envelope.
+
+Co-coding is normal. "Warmer, more playful, and slightly flirtatious" produces
+three sibling observations rather than one winner. Hierarchy roll-up is not
+co-coding: a factual-error child contributes to its correctness-problem parent
+in a parent-level analysis but is counted only once in that analysis.
 
 Valence records the reporter's appraisal, not an intrinsic moral property of a
 behaviour. "More flirtatious" can therefore be positive, negative, mixed, or
@@ -104,9 +122,10 @@ unstated without changing its behaviour identifier.
 
 A report does not need an event-onset date or an explicit "this changed today"
 claim to be eligible. "Opus 5 is spiky" is a behaviour report received today
-with onset unknown and direction `present`. `received_at` anchors reporting-time
-analysis; it must never be relabelled as the behaviour's onset. Missing onset
-reduces temporal-causality information but does not erase the report.
+with onset unknown, state `present`, and change `uncertain`. `received_at`
+anchors reporting-time analysis; it must never be relabelled as the behaviour's
+onset. Missing onset reduces temporal-causality information but does not erase
+the report.
 
 Evidence kinds are descriptive rather than a permanent numeric hierarchy.
 Weighting, if used, must be versioned and empirically tested; an attached image
@@ -119,8 +138,9 @@ The vocabulary is an append-only ledger. Every entry needs:
 - a stable opaque ID;
 - a short public label suitable for the cloud;
 - a neutral definition and explicit exclusions;
-- a parent dimension;
-- permitted directions;
+- an organisational domain and reporting layer;
+- a `broad` or `specific` coding scope;
+- permitted current states, temporal changes, event states, and qualifiers;
 - high-precision examples and counterexamples;
 - creation time, status, and vocabulary version;
 - provenance: seeded, discovered cluster, split, or superseded;
@@ -140,16 +160,31 @@ The ledger supports two concept shapes:
 
 Event concepts are first-class entries rather than awkwardly forced onto a
 more/less scale. Their event state can be occurred, new, ceased, recurred, or
-uncertain; their `direction` remains null.
+uncertain; their dimension state and change remain null.
+
+### Hierarchy and unresolved specificity
+
+A broad governed concept is a legitimate endpoint. "Keeps making mistakes" can
+be coded to `correctness problem` without guessing factual versus reasoning
+error. A narrower report is coded only to its supported child and rolled up for
+parent-level analysis; storing both parent and child observations would double
+count it. The current draft has codable broad parents for correctness problems,
+unexpected sensitive-content intrusions, and product/delivery problems. Apparent
+affect is also a broad open concept whose governed qualifier may remain absent.
+
+Organisational siblings may overlap without being subtypes. Warmth, emotional
+expressiveness, emotional attunement, playfulness, flirtation, and relational
+intensity therefore remain co-codable siblings. The hierarchy must follow
+meaning rather than forcing every correlated behaviour into a tree.
 
 `unclassified` is a classification state, not a behaviour concept. It must never
 appear in the public cloud as though it describes model behaviour.
 
-### Provisional seed dimensions
+### Provisional seed vocabulary
 
 This is a design seed, not the final taxonomy:
 
-| Dimension | Example canonical label | Typical direction |
+| Dimension | Example canonical label | Typical change |
 | --- | --- | --- |
 | Responsiveness | latency | increase / decrease |
 | Completion | truncation | increase / decrease |
@@ -167,11 +202,23 @@ This is a design seed, not the final taxonomy:
 | Interaction style | flirtation | increase / decrease |
 | Agreement style | sycophancy | increase / decrease |
 | Creativity | creative output | increase / decrease |
+| Social perception | emotional attunement | state plus change |
+| Affective presentation | emotional expressiveness / apparent affect | state plus change |
+| Conversational style | formality / playfulness | state plus change |
+| Interpersonal stance | assertiveness | state plus change |
+| Task agency | initiative | state plus change |
+| Relational behaviour | relational intensity | state plus change |
 
-Labels should describe the observable dimension. Direction supplies "more" or
-"less". This prevents us from creating a permanently negative ontology while
-still allowing inherently concerning observations such as factual errors to be
-named plainly.
+The governed ledger is definitive and additionally includes event concepts for
+system-style text exposure, persona shift, moderation interception, unsolicited
+sensitive content, platform availability, generation failure, suspected routing
+mismatch, and tool/feature failure. Product and serving observations do not
+silently increase a model-behaviour count.
+
+Labels should describe the observable dimension. State and change supply
+"present", "more", or "less" independently. This prevents us from creating a
+permanently negative ontology while still allowing inherently concerning
+observations such as factual errors to be named plainly.
 
 ### Conservative v0 migration
 
@@ -181,7 +228,7 @@ named plainly.
 | `lazy` | Do not map wholesale; reclassify as truncation, detail, or completion only when supported |
 | `quality` | Unclassified appraisal unless the underlying report names a specific behaviour |
 | `refusals` | Map to refusal behaviour when the text actually describes a refusal |
-| `length` | Map to detail or response length with explicit direction |
+| `length` | Map to detail or response length with explicit state/change |
 | `other` | Unclassified state |
 
 Old aggregate counts remain viewable as preview history but never merge into a
@@ -216,7 +263,7 @@ The processing order is part of the scientific contract:
    user submissions.
 3. Extract candidate behaviour phrases inside the private boundary.
 4. Map high-confidence candidates to governed behaviour IDs.
-5. Extract direction independently.
+5. Extract current state and temporal change independently.
 6. Classify reporter valence independently, including `mixed` and `unstated`.
 7. Record evidence kind and classification provenance.
 8. Send uncertain or novel candidates to the unclassified/novelty lane.
@@ -499,7 +546,8 @@ not a conclusion embedded permanently in the cloud renderer.
 ### Phase 1 — ethical structured core
 
 - Add the versioned vocabulary ledger.
-- Add structured behaviour, direction, valence, evidence, and provenance types.
+- Add structured behaviour, state, change, valence, attribution, evidence, and
+  provenance types. **Implemented as a non-active coding contract.**
 - Support both dimension and event concepts.
 - Replace complaint-only source admission with valence-neutral behaviour-report
   selection and balanced fixtures.
@@ -543,12 +591,18 @@ processing, and scheduling remain separate operational decisions.
    receipt and onset fields.
 4. Behaviour and valence can disagree without data loss.
 5. Dimension and event concepts both survive round-trip storage.
-6. Uncertain reports abstain and increase the unclassified-share metric.
-7. Discovery and targeted duplicates count once and retain query provenance.
-8. Existing raw user descriptions still cannot cross the moderation boundary.
-9. Synthetic/legacy observations cannot enter the new baseline.
-10. Public output contains governed IDs/labels and aggregates, never raw phrases.
-11. The current detector remains available for side-by-side replay until the new
+6. Reports can be co-coded, while hierarchy roll-up cannot double-count a child
+   as a separately observed parent.
+7. Broad parent coding is valid and never forces unsupported specificity.
+8. Every new public-source observation begins as `reported`; causal layer may
+   remain unknown.
+9. Deliberately adversarial elicitation cannot enter ordinary-use signals.
+10. Uncertain reports abstain and increase the unclassified-share metric.
+11. Discovery and targeted duplicates count once and retain query provenance.
+12. Existing raw user descriptions still cannot cross the moderation boundary.
+13. Synthetic/legacy observations cannot enter the new baseline.
+14. Public output contains governed IDs/labels and aggregates, never raw phrases.
+15. The current detector remains available for side-by-side replay until the new
    pipeline is validated.
 
 ## Methodological references
