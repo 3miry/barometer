@@ -161,6 +161,71 @@ def _category_cloud(category_items: list[tuple[str, int]], weather_label: str) -
       </div>"""
 
 
+def _hero_weather_system() -> str:
+    """Decorative synoptic atmosphere; never encodes an evidence state."""
+    bits = (
+        (1114, 79, "0", "a"), (1164, 102, "1", "b"),
+        (1207, 140, "1", "c"), (1227, 190, "0", "d"),
+        (1198, 244, "1", "e"), (1144, 278, "0", "f"),
+        (1069, 290, "1", "g"), (990, 274, "1", "h"),
+        (929, 231, "0", "i"), (907, 172, "1", "j"),
+        (937, 112, "0", "k"), (994, 77, "1", "l"),
+    )
+    binary = "".join(
+        f'<text class="weather-bit bit-{delay}" x="{x}" y="{y}">{bit}</text>'
+        for x, y, bit, delay in bits
+    )
+    return f"""
+    <div class="hero-weather-system" aria-hidden="true">
+      <svg viewBox="0 0 1440 420" preserveAspectRatio="xMidYMid slice"
+        role="presentation" focusable="false">
+        <defs>
+          <linearGradient id="pressure-fade" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#7eb2c8" stop-opacity="0"/>
+            <stop offset=".28" stop-color="#7eb2c8" stop-opacity=".24"/>
+            <stop offset=".72" stop-color="#9bc8d8" stop-opacity=".34"/>
+            <stop offset="1" stop-color="#9bc8d8" stop-opacity="0"/>
+          </linearGradient>
+          <radialGradient id="cyclone-halo">
+            <stop offset="0" stop-color="#9bd4e4" stop-opacity=".2"/>
+            <stop offset=".48" stop-color="#52889e" stop-opacity=".08"/>
+            <stop offset="1" stop-color="#0b0f14" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="soft-glow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g class="pressure-contours" fill="none" stroke="url(#pressure-fade)">
+          <path d="M-90 322 C165 178 340 391 612 244 S1023 62 1518 198"/>
+          <path d="M-84 367 C182 224 365 426 635 292 S1047 109 1514 250"/>
+          <path d="M-72 270 C145 128 346 342 590 194 S1000 12 1512 148"/>
+          <path d="M122 430 C310 291 480 411 708 314 S1128 198 1458 300"/>
+        </g>
+        <g class="cyclone-position">
+        <g class="binary-cyclone">
+          <circle class="cyclone-halo" cx="1052" cy="181" r="194" fill="url(#cyclone-halo)"/>
+          <g class="cyclone-streams" fill="none" filter="url(#soft-glow)"
+            stroke-linecap="round" pathLength="1">
+            <path class="cyclone-thread thread-a" pathLength="1"
+              d="M1052 181 C1081 148 1128 177 1102 216 C1056 283 944 245 948 157 C953 48 1113 16 1220 103 C1326 190 1265 334 1126 367"/>
+            <path class="cyclone-thread thread-b" pathLength="1"
+              d="M1052 181 C1022 208 1045 247 1090 237 C1162 221 1174 122 1106 79 C1010 17 876 93 882 219 C890 353 1034 400 1191 350"/>
+            <path class="cyclone-thread thread-c" pathLength="1"
+              d="M1052 181 C1063 195 1052 213 1031 210 C997 205 986 162 1012 137 C1054 97 1124 122 1139 181 C1159 259 1088 326 1005 310 C911 292 863 192 896 103"/>
+          </g>
+          <g class="cyclone-eye" fill="none">
+            <circle cx="1052" cy="181" r="12"/>
+            <circle cx="1052" cy="181" r="25"/>
+            <circle cx="1052" cy="181" r="42"/>
+          </g>
+          <g class="binary-fragments">{binary}</g>
+        </g>
+        </g>
+        <path class="surface-dots" pathLength="1"
+          d="M-30 118 C260 42 496 152 714 94 S1110 22 1468 72"/>
+      </svg>
+    </div>"""
 def render_landing(
         models: dict[str, tuple[list[Complaint], list[Assessment]]],
         out_path: str, generated_at: float, window_days: int) -> None:
@@ -362,7 +427,7 @@ def render_landing(
 :root{{--ink:#e7ecf1;--muted:#8d99a6;--faint:#5f6a76;--paper:#0b0f14;
   --panel:#121821;--panel-2:#171f29;--line:#26313d;--blue:#7eb2c8;
   --amber:#e8b85b;--green:#7aa78d;--shadow:0 18px 44px rgba(0,0,0,.22)}}
-*{{box-sizing:border-box}} body{{margin:0;background:var(--paper);color:var(--ink);
+*{{box-sizing:border-box}} body{{margin:0;overflow-x:hidden;background:var(--paper);color:var(--ink);
   font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}}
 [hidden]{{display:none!important}}
 a{{color:inherit}} .shell{{width:min(1180px,calc(100% - 40px));margin:auto}}
@@ -372,7 +437,20 @@ header{{padding:30px 0 12px;border-bottom:1px solid rgba(255,255,255,.06)}}
 .brand span{{color:var(--blue)}} .nav-note{{color:var(--muted);font-size:13px}}
 .report-button{{border:1px solid var(--line);border-radius:999px;padding:8px 13px;
   color:#c4d1da;font-size:13px;text-decoration:none}} .report-button:hover{{border-color:var(--blue);color:#fff}}
-.hero{{padding:72px 0 44px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(270px,.7fr);gap:56px;align-items:end}}
+.hero{{position:relative;isolation:isolate;padding:72px 0 44px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(270px,.7fr);gap:56px;align-items:end}}
+.hero-copy,.weather-box{{position:relative;z-index:2}}
+.hero-weather-system{{position:absolute;z-index:0;left:50%;top:2px;width:100vw;height:calc(100% + 34px);transform:translateX(-50%);pointer-events:none;overflow:hidden;opacity:.88;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 12%,#000 78%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 12%,#000 78%,transparent 100%)}}
+.hero-weather-system::after{{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(11,15,20,.96) 0,rgba(11,15,20,.66) 42%,rgba(11,15,20,.18) 78%,rgba(11,15,20,.5) 100%)}}
+.hero-weather-system svg{{width:100%;height:100%;display:block}}
+.pressure-contours path{{stroke-width:1;vector-effect:non-scaling-stroke;stroke-dasharray:9 14;animation:pressure-drift 28s linear infinite}}
+.pressure-contours path:nth-child(2){{animation-duration:34s;animation-direction:reverse;opacity:.72}} .pressure-contours path:nth-child(3){{animation-duration:41s;opacity:.52}} .pressure-contours path:nth-child(4){{animation-duration:37s;animation-direction:reverse;opacity:.42}}
+.binary-cyclone{{transform-origin:1052px 181px;animation:cyclone-drift 22s ease-in-out infinite alternate}}
+.cyclone-streams{{transform-origin:1052px 181px;animation:cyclone-turn 54s linear infinite}}
+.cyclone-thread{{stroke:#9bcddd;stroke-width:4;vector-effect:non-scaling-stroke;stroke-dasharray:0 0.022;animation:dot-current 8s linear infinite}}
+.thread-b{{stroke:#6da4b8;stroke-width:3;stroke-dasharray:0 0.031;animation-duration:11s;animation-direction:reverse}} .thread-c{{stroke:#c1e2e9;stroke-width:2.5;stroke-dasharray:0 0.041;animation-duration:7s}}
+.cyclone-eye circle{{stroke:#9dceda;stroke-width:1;opacity:.34;transform-origin:1052px 181px;animation:eye-breathe 5.5s ease-in-out infinite alternate}} .cyclone-eye circle:nth-child(2){{animation-delay:-1.8s;opacity:.22}} .cyclone-eye circle:nth-child(3){{animation-delay:-3.6s;opacity:.13}}
+.weather-bit{{fill:#a9d3dc;font:9px ui-monospace,SFMono-Regular,Consolas,monospace;opacity:.16;animation:bit-flicker 6s ease-in-out infinite}} .bit-b,.bit-g,.bit-k{{animation-delay:-1s}} .bit-c,.bit-h,.bit-l{{animation-delay:-2.2s}} .bit-d,.bit-i{{animation-delay:-3.4s}} .bit-e,.bit-j{{animation-delay:-4.6s}}
+.surface-dots{{fill:none;stroke:#78aebf;stroke-width:3;stroke-linecap:round;stroke-dasharray:0 0.018;opacity:.18;animation:dot-current 18s linear infinite reverse}}
 .eyebrow,.section-kicker,.lab{{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}}
 h1{{font-size:clamp(42px,7vw,78px);line-height:.96;letter-spacing:-.055em;margin:14px 0 24px;max-width:820px}}
 .hero p{{font-size:18px;color:#aab4bf;max-width:700px;margin:0}}
@@ -414,6 +492,12 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 @keyframes fog-bank{{from{{transform:translate3d(-4%,0,0)}}to{{transform:translate3d(5%,1%,0)}}}}
 @keyframes heat-rise{{from{{transform:translate3d(0,4%,0) scaleX(1)}}to{{transform:translate3d(2%,-4%,0) scaleX(1.04)}}}}
 @keyframes lightning{{0%,88%,92%,100%{{opacity:0}}89%{{opacity:.9}}90%{{opacity:.18}}91%{{opacity:.75}}}}
+@keyframes pressure-drift{{to{{stroke-dashoffset:-92}}}}
+@keyframes dot-current{{to{{stroke-dashoffset:-1}}}}
+@keyframes cyclone-turn{{to{{transform:rotate(360deg)}}}}
+@keyframes cyclone-drift{{from{{transform:translate3d(-16px,6px,0) scale(.98)}}to{{transform:translate3d(20px,-8px,0) scale(1.03)}}}}
+@keyframes eye-breathe{{from{{transform:scale(.88);opacity:.12}}to{{transform:scale(1.12);opacity:.42}}}}
+@keyframes bit-flicker{{0%,100%{{opacity:.08}}45%{{opacity:.28}}62%{{opacity:.12}}}}
 .breakdown-label{{display:block;color:var(--faint);font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;margin-bottom:7px}}
 .detail-link{{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);text-decoration:none;color:#c6d0d7;font-size:12px}}
 .detail-link span{{color:var(--blue);margin-left:5px}} .detail-link:hover{{color:#fff}}
@@ -425,9 +509,9 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 .method-card{{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}}
 .method-card b{{display:block;margin-bottom:5px}} .method-card span{{color:var(--muted);font-size:12px}}
 footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);font-size:12px}}
-@media(prefers-reduced-motion:reduce){{.cloud-word-inner,.weather-motion{{animation:none!important}}}}
+@media(prefers-reduced-motion:reduce){{.cloud-word-inner,.weather-motion,.pressure-contours path,.binary-cyclone,.cyclone-streams,.cyclone-thread,.cyclone-eye circle,.weather-bit,.surface-dots{{animation:none!important}}}}
 @media(max-width:1000px){{.model-list{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}
-@media(max-width:680px){{.hero{{grid-template-columns:1fr;padding-top:50px}}.window-row{{flex-wrap:wrap}}.control-row{{grid-template-columns:1fr}}.model-list{{grid-template-columns:1fr}}.model-card{{min-height:410px}}.meta-line,.section-head,.unattributed-head{{align-items:start;flex-direction:column}}.method{{grid-template-columns:1fr}}.method-grid{{grid-template-columns:1fr}}}}
+@media(max-width:680px){{.hero{{grid-template-columns:1fr;padding-top:50px}}.hero-weather-system{{left:62%;width:150vw;opacity:.64}}.cyclone-position{{transform:translateX(-330px)}}.hero-weather-system::after{{background:linear-gradient(90deg,rgba(11,15,20,.94),rgba(11,15,20,.44) 75%,rgba(11,15,20,.7))}}.window-row{{flex-wrap:wrap}}.control-row{{grid-template-columns:1fr}}.model-list{{grid-template-columns:1fr}}.model-card{{min-height:410px}}.meta-line,.section-head,.unattributed-head{{align-items:start;flex-direction:column}}.method{{grid-template-columns:1fr}}.method-grid{{grid-template-columns:1fr}}}}
 </style></head><body>
 <header><div class="shell nav">
   <a class="brand" href="index.html"><span>☂</span> The Barometer</a>
@@ -436,7 +520,8 @@ footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);
 </div></header>
 <main class="shell">
   <section class="hero">
-    <div><div class="eyebrow">AI model weather</div>
+    {_hero_weather_system()}
+    <div class="hero-copy"><div class="eyebrow">AI model weather</div>
       <h1>Is it just you—or is something shifting?</h1>
       <p>Barometer gathers public reports across independent sources, collapses viral echoes, and shows where unusual model behaviour may be emerging.</p>
     </div>
