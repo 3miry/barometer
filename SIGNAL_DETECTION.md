@@ -246,6 +246,27 @@ temporal shifts, unexpectedly present or absent behaviour, and requests for
 corroboration are useful signals of relevance, but they are not minimum validity
 criteria.
 
+### Development classifier and shadow mode
+
+`structured-rules-v1-dev` implements the governed coding contract as a strict,
+deterministic baseline. It is not wired into detector v0, storage, collection,
+or public rendering. The read-only shadow runner evaluates the synthetic
+development fixture and may inspect a retained SQLite database without writing
+classified results back.
+
+The reviewed fixture is a development contract, not a held-out accuracy set.
+Matching it verifies implementation semantics only. A real performance estimate
+requires newly sampled reports independently coded after the rules are frozen.
+
+The shadow gate also audits attribution. A report naming multiple families or
+exact models can carry valid behaviour observations but is not aggregate-ready
+until each observation is tied to the correct model clause. Detector v0's
+first-family routing is not inherited as ground truth.
+
+Known and novel content may coexist in one report. Shadow output therefore keeps
+private named novelty hints alongside governed observations rather than forcing
+the entire report into either the known or unknown lane.
+
 Behaviour-free praise and behaviour-free abuse are symmetrically outside the
 weather stream. "Opus 5 is wonderful" and "Opus 5 is rubbish" contain valence
 but no codable behaviour; "Opus 5 writes unusually clear prose" and "Opus 5 is
@@ -554,6 +575,8 @@ not a conclusion embedded permanently in the cloud renderer.
 - Add separate discovery-sample and targeted-probe provenance with deduplication.
 - Add coverage-audit collection-health metrics.
 - Introduce abstaining classification behind a feature flag.
+- Add a deterministic classifier and read-only shadow evaluation before feature
+  flag integration. **Implemented; not activated.**
 - Update user intake and moderation without weakening the private boundary.
 - Add unclassified-share metrics and positive/mixed weather states.
 - Keep taxonomy-v0 as the default public detector until replay tests pass.

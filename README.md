@@ -24,6 +24,10 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - `tests/fixtures/behaviour_reports.v1.json` — explicitly synthetic, balanced
   human-review cases for future ingress and classifier evaluation; these are
   reported assertions, not production findings.
+- `barometer/classifier.py`, `barometer/shadow.py`, and `shadow_classifier.py`
+  — conservative structured classification and read-only shadow evaluation.
+  They are disconnected from detector v0 and public output; see
+  `SHADOW_CLASSIFIER.md`.
 - `SIGNAL_DETECTION.md` — the versioned post-MVP architecture for governed
   behaviour concepts, separate valence, novelty discovery, and PV-inspired
   signal review. It is a design contract, not an activated detector.
@@ -46,6 +50,18 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - Runtime databases and private observation artifacts are deliberately excluded
   from the repository. The checked-in HTML files are aggregate demonstration
   outputs, not evidence that collection is live.
+
+## Shadow classifier
+
+Run the reviewed synthetic development contract without touching live systems:
+
+```powershell
+python shadow_classifier.py
+```
+
+Add `--db barometer.db` to inspect retained local rows read-only. A perfect
+development-contract score is not real-world accuracy; the same examples were
+used to design the initial deterministic rules.
 
 ## Data and credentials
 - The repository contains no API credentials. Live transports read credentials
