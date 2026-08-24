@@ -20,8 +20,8 @@ class StructuredClassifierTests(unittest.TestCase):
     def test_human_reviewed_development_contract_matches(self):
         result = evaluate_fixture(DEFAULT_FIXTURE)
         self.assertEqual(result["evaluation_kind"], "development_contract")
-        self.assertEqual(result["cases"], 39)
-        self.assertEqual(result["full_matches"], 39)
+        self.assertEqual(result["cases"], 40)
+        self.assertEqual(result["full_matches"], 40)
         self.assertEqual(result["mismatches"], [])
         self.assertIn("not real-world classifier accuracy", result["warning"])
 
@@ -34,8 +34,10 @@ class StructuredClassifierTests(unittest.TestCase):
         result = classify_report("Claude keeps making mistakes.")
         self.assertEqual(result.eligibility, "behaviour_report")
         self.assertEqual(len(result.observations), 1)
-        self.assertEqual(result.observations[0].concept_id, "beh_0019")
+        self.assertEqual(result.observations[0].concept_id, "beh_0045")
         self.assertEqual(result.observations[0].specificity, "broad")
+        self.assertEqual(result.observations[0].state, "low")
+        self.assertEqual(result.observations[0].change, "uncertain")
 
     def test_general_performance_preserves_vague_signal_but_not_cost(self):
         result = classify_report(

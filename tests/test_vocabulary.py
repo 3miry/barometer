@@ -20,6 +20,7 @@ from barometer.vocabulary import (
     VALID_VALENCES,
     VocabularyError,
     concepts_by_id,
+    concept_replacements,
     load_hierarchy,
     load_vocabulary,
     narrower_concept_ids,
@@ -46,13 +47,15 @@ def _read_json(path: Path) -> dict:
 
 
 class VocabularyLedgerTests(unittest.TestCase):
-    def test_seed_ledger_is_valid_provisional_and_non_public(self):
+    def test_seed_ledger_is_valid_governed_and_non_public(self):
         concepts = load_vocabulary()
-        self.assertGreaterEqual(len(concepts), 37)
+        self.assertGreaterEqual(len(concepts), 45)
         self.assertTrue(any(item.shape == "dimension" for item in concepts))
         self.assertTrue(any(item.shape == "event" for item in concepts))
         self.assertTrue(any(item.coding_scope == "broad" for item in concepts))
-        self.assertTrue(all(item.status == "provisional" for item in concepts))
+        self.assertTrue(
+            {item.status for item in concepts} <= {"provisional", "superseded"})
+        self.assertTrue(any(item.status == "superseded" for item in concepts))
         self.assertFalse(any(item.publishable for item in concepts))
         labels = {item.public_label.casefold() for item in concepts}
         self.assertTrue(labels.isdisjoint(RESERVED_LEGACY_LABELS))
@@ -65,11 +68,55 @@ class VocabularyLedgerTests(unittest.TestCase):
             frozenset(("beh_0005", "beh_0006", "beh_0007")),
         )
         self.assertEqual(
+            narrower_concept_ids("beh_0045"),
+            frozenset(("beh_0041", "beh_0042", "beh_0043")),
+        )
+        self.assertEqual(
             narrower_concept_ids("beh_0033"),
             frozenset(("beh_0034", "beh_0035", "beh_0036", "beh_0037")),
         )
         self.assertEqual(narrower_concept_ids("beh_0027"), frozenset())
         self.assertEqual(concepts_by_id()["beh_0027"].coding_scope, "broad")
+
+    def test_superseded_concepts_name_their_neutral_replacements(self):
+        replacements = concept_replacements()
+        self.assertEqual(replacements["beh_0002"], "beh_0040")
+        self.assertEqual(replacements["beh_0005"], "beh_0041")
+        self.assertEqual(replacements["beh_0006"], "beh_0042")
+        self.assertEqual(replacements["beh_0007"], "beh_0043")
+        self.assertEqual(replacements["beh_0011"], "beh_0044")
+        self.assertEqual(replacements["beh_0019"], "beh_0045")
+        concepts = concepts_by_id()
+        self.assertTrue(all(
+            concepts[concept_id].status == "superseded"
+            for concept_id in replacements
+        ))
+
+    def test_supersession_rejects_unknown_and_repeated_replacements(self):
+        payload = _read_json(LEDGER_PATH)
+        unknown = copy.deepcopy(payload)
+        unknown["events"].append({
+            "event_id": "vocab_evt_9998",
+            "type": "concept_superseded",
+            "recorded_at": "2026-08-24T21:00:00Z",
+            "concept_id": "beh_0040",
+            "replacement_id": "beh_9999",
+            "rationale": "test",
+        })
+        with self.assertRaisesRegex(VocabularyError, "unknown concept"):
+            validate_ledger(unknown)
+
+        repeated = copy.deepcopy(payload)
+        repeated["events"].append({
+            "event_id": "vocab_evt_9998",
+            "type": "concept_superseded",
+            "recorded_at": "2026-08-24T21:00:00Z",
+            "concept_id": "beh_0002",
+            "replacement_id": "beh_0040",
+            "rationale": "test",
+        })
+        with self.assertRaisesRegex(VocabularyError, "already superseded"):
+            validate_ledger(repeated)
 
     def test_hierarchy_rejects_unknown_concepts_cycles_and_specific_parents(self):
         payload = _read_json(LEDGER_PATH)
@@ -221,7 +268,7 @@ class EvaluationFixtureTests(unittest.TestCase):
         broad = next(
             case for case in self.fixture["cases"] if case["id"] == "eval_025")
         observation = broad["expected"]["observations"][0]
-        self.assertEqual(observation["concept_id"], "beh_0019")
+        self.assertEqual(observation["concept_id"], "beh_0045")
         self.assertEqual(observation["specificity"], "broad")
         validate_coded_observation(observation)
 

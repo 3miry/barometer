@@ -2,7 +2,7 @@
   "schema_version": 2,
   "ledger_id": "barometer-behaviour-vocabulary",
   "status": "draft",
-  "notes": "Append-only draft design ledger. Human-reviewed seed concepts remain provisional and non-public. Candidate phrases are classification examples, not active source probes.",
+  "notes": "Append-only draft design ledger. Human-reviewed concepts remain provisional or explicitly superseded and non-public. Candidate phrases are classification examples, not active source probes.",
   "events": [
     {
       "event_id": "vocab_evt_0001",
@@ -2256,6 +2256,192 @@
         "definition_version": 1,
         "origin": "Human-review finding: distinguish useful work per token from succinctness, detail, latency, and financial cost."
       }
-    }
+    },
+    {
+      "event_id": "vocab_evt_0049",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T20:31:40Z",
+      "concept": {
+        "id": "beh_0040",
+        "slug": "completion.response_completion",
+        "public_label": "response completion",
+        "shape": "dimension",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "parent": "completion",
+        "definition": "The extent to which a response reaches a complete ending rather than stopping prematurely or being visibly cut off.",
+        "exclusions": [
+          "A complete but concise answer",
+          "A response stopped by an explicit product length limit disclosed to the reporter"
+        ],
+        "allowed_states": ["present", "absent", "high", "low", "mixed", "uncertain"],
+        "allowed_changes": ["increase", "decrease", "new", "ceased", "stable", "changed", "uncertain"],
+        "allowed_event_states": [],
+        "candidate_phrases": ["completes every answer", "cut off halfway", "response completion improved"],
+        "examples": [
+          {"text": "Gemini keeps cutting answers off halfway.", "state": "low", "change": "decrease", "event_state": null, "valence": "negative"},
+          {"text": "Gemini now completes long answers reliably.", "state": "high", "change": "increase", "event_state": null, "valence": "positive"}
+        ],
+        "counterexamples": ["Gemini gave a short but complete answer."],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Neutral successor to truncation; the capability axis supports improvement and deterioration without embedding valence."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0050",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T20:31:40Z",
+      "concept": {
+        "id": "beh_0041",
+        "slug": "accuracy.factual",
+        "public_label": "factual accuracy",
+        "shape": "dimension",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "parent": "correctness",
+        "definition": "The correctness of factual claims presented by the model as true, where those claims can be checked against available evidence.",
+        "exclusions": ["Disagreement about taste, values, or interpretation", "Reasoning mistakes where the underlying facts are correct"],
+        "allowed_states": ["present", "absent", "high", "low", "mixed", "uncertain"],
+        "allowed_changes": ["increase", "decrease", "new", "ceased", "stable", "changed", "uncertain"],
+        "allowed_event_states": [],
+        "candidate_phrases": ["getting facts wrong", "fewer factual mistakes", "factually accurate"],
+        "examples": [
+          {"text": "It keeps getting basic dates wrong.", "state": "low", "change": "decrease", "event_state": null, "valence": "negative"},
+          {"text": "Its factual recall has become much more accurate.", "state": "high", "change": "increase", "event_state": null, "valence": "positive"}
+        ],
+        "counterexamples": ["I do not like its opinion about the novel."],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Neutral successor to factual errors; accuracy direction is carried by state and change."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0051",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T20:31:40Z",
+      "concept": {
+        "id": "beh_0042",
+        "slug": "reasoning.reliability",
+        "public_label": "reasoning reliability",
+        "shape": "dimension",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "parent": "reasoning",
+        "definition": "The reliability and internal consistency of inference, calculation, and step-to-step reasoning when relevant premises are available.",
+        "exclusions": ["Incorrect external facts", "A conclusion the reporter dislikes without an identifiable reasoning issue"],
+        "allowed_states": ["present", "absent", "high", "low", "mixed", "uncertain"],
+        "allowed_changes": ["increase", "decrease", "new", "ceased", "stable", "changed", "uncertain"],
+        "allowed_event_states": [],
+        "candidate_phrases": ["contradicts its own reasoning", "logic improved", "reasoning is more reliable"],
+        "examples": [
+          {"text": "Sonnet contradicts its own reasoning more often.", "state": "low", "change": "decrease", "event_state": null, "valence": "negative"},
+          {"text": "Its reasoning has become more consistent.", "state": "high", "change": "increase", "event_state": null, "valence": "positive"}
+        ],
+        "counterexamples": ["Sonnet gave the wrong birth year."],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Neutral successor to reasoning errors; reliability direction is carried by state and change."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0052",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T20:31:40Z",
+      "concept": {
+        "id": "beh_0043",
+        "slug": "coding.functionality",
+        "public_label": "code functionality",
+        "shape": "dimension",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "parent": "coding",
+        "definition": "The extent to which generated code compiles, runs, and satisfies the stated functional requirement in the described environment.",
+        "exclusions": ["Code-style preferences", "Failure caused only by an unstated dependency or environment difference"],
+        "allowed_states": ["present", "absent", "high", "low", "mixed", "uncertain"],
+        "allowed_changes": ["increase", "decrease", "new", "ceased", "stable", "changed", "uncertain"],
+        "allowed_event_states": [],
+        "candidate_phrases": ["code does not run", "working code more often", "code functionality improved"],
+        "examples": [
+          {"text": "The code compiles but no longer performs the requested action.", "state": "low", "change": "decrease", "event_state": null, "valence": "negative"},
+          {"text": "It now produces working code on the first attempt.", "state": "high", "change": "increase", "event_state": null, "valence": "positive"}
+        ],
+        "counterexamples": ["I prefer tabs and it used spaces."],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Neutral successor to non-working code; functionality direction is carried by state and change."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0053",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T20:31:40Z",
+      "concept": {
+        "id": "beh_0044",
+        "slug": "context.retention",
+        "public_label": "context retention",
+        "shape": "dimension",
+        "reporting_layer": "model",
+        "coding_scope": "specific",
+        "parent": "context handling",
+        "definition": "The extent to which a model uses relevant information already present in the active conversation or supplied context.",
+        "exclusions": ["Information outside the available context", "Persistent product memory across separate conversations"],
+        "allowed_states": ["present", "absent", "high", "low", "mixed", "uncertain"],
+        "allowed_changes": ["increase", "decrease", "new", "ceased", "stable", "changed", "uncertain"],
+        "allowed_event_states": [],
+        "candidate_phrases": ["forgot the first message", "holds context better", "context retention declined"],
+        "examples": [
+          {"text": "Sonnet forgot the first message again.", "state": "low", "change": "decrease", "event_state": null, "valence": "negative"},
+          {"text": "Sonnet holds the full conversation context better now.", "state": "high", "change": "increase", "event_state": null, "valence": "positive"}
+        ],
+        "counterexamples": ["Sonnet did not remember a conversation from last month."],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Neutral successor to context loss; retention direction is carried by state and change."
+      }
+    },
+    {
+      "event_id": "vocab_evt_0054",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T20:31:40Z",
+      "concept": {
+        "id": "beh_0045",
+        "slug": "correctness.general",
+        "public_label": "general correctness",
+        "shape": "dimension",
+        "reporting_layer": "model",
+        "coding_scope": "broad",
+        "parent": "correctness",
+        "definition": "The overall correctness of model output when a report does not support a more specific factual, reasoning, or code-functionality concept.",
+        "exclusions": ["Pure praise or dislike without a correctness assertion", "Reports supporting a narrower governed correctness concept"],
+        "allowed_states": ["present", "absent", "high", "low", "mixed", "uncertain"],
+        "allowed_changes": ["increase", "decrease", "new", "ceased", "stable", "changed", "uncertain"],
+        "allowed_event_states": [],
+        "candidate_phrases": ["keeps making mistakes", "more correct lately", "getting fewer things wrong"],
+        "examples": [
+          {"text": "Claude keeps making mistakes, but I cannot tell what kind.", "state": "low", "change": "uncertain", "event_state": null, "valence": "negative"},
+          {"text": "Claude is generally more correct lately.", "state": "high", "change": "increase", "event_state": null, "valence": "positive"}
+        ],
+        "counterexamples": ["Claude quality has tanked."],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Neutral broad successor to correctness problem; narrower supported concepts still take precedence."
+      }
+    },
+    {"event_id": "vocab_evt_0055", "type": "hierarchy_edge_created", "recorded_at": "2026-08-24T20:31:40Z", "broader_id": "beh_0045", "narrower_id": "beh_0041"},
+    {"event_id": "vocab_evt_0056", "type": "hierarchy_edge_created", "recorded_at": "2026-08-24T20:31:40Z", "broader_id": "beh_0045", "narrower_id": "beh_0042"},
+    {"event_id": "vocab_evt_0057", "type": "hierarchy_edge_created", "recorded_at": "2026-08-24T20:31:40Z", "broader_id": "beh_0045", "narrower_id": "beh_0043"},
+    {"event_id": "vocab_evt_0058", "type": "concept_superseded", "recorded_at": "2026-08-24T20:31:40Z", "concept_id": "beh_0002", "replacement_id": "beh_0040", "rationale": "Replace problem incidence with a neutral completion capability axis."},
+    {"event_id": "vocab_evt_0059", "type": "concept_superseded", "recorded_at": "2026-08-24T20:31:40Z", "concept_id": "beh_0005", "replacement_id": "beh_0041", "rationale": "Replace error incidence with a neutral factual-accuracy capability axis."},
+    {"event_id": "vocab_evt_0060", "type": "concept_superseded", "recorded_at": "2026-08-24T20:31:40Z", "concept_id": "beh_0006", "replacement_id": "beh_0042", "rationale": "Replace error incidence with a neutral reasoning-reliability capability axis."},
+    {"event_id": "vocab_evt_0061", "type": "concept_superseded", "recorded_at": "2026-08-24T20:31:40Z", "concept_id": "beh_0007", "replacement_id": "beh_0043", "rationale": "Replace failure incidence with a neutral code-functionality capability axis."},
+    {"event_id": "vocab_evt_0062", "type": "concept_superseded", "recorded_at": "2026-08-24T20:31:40Z", "concept_id": "beh_0011", "replacement_id": "beh_0044", "rationale": "Replace loss incidence with a neutral context-retention capability axis."},
+    {"event_id": "vocab_evt_0063", "type": "concept_superseded", "recorded_at": "2026-08-24T20:31:40Z", "concept_id": "beh_0019", "replacement_id": "beh_0045", "rationale": "Replace a valence-loaded problem parent with a neutral correctness capability axis."}
   ]
 }

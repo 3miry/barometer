@@ -13,7 +13,11 @@ import time
 
 from .catalog import MODEL_CATALOG
 from .classifier import CLASSIFIER_VERSION
-from .vocabulary import CodedObservation, validate_coded_observations
+from .vocabulary import (
+    CodedObservation,
+    concepts_by_id,
+    validate_coded_observations,
+)
 
 
 ALLOWED_REVIEW_STATUSES = frozenset((
@@ -131,6 +135,15 @@ def validate_review_decision(
         observations = validate_coded_observations(observations_raw)
     except ValueError as exc:
         raise ReviewError(str(exc)) from exc
+    concepts = concepts_by_id()
+    superseded = [
+        item.concept_id
+        for item in observations
+        if concepts[item.concept_id].status == "superseded"
+    ]
+    if superseded:
+        raise ReviewError(
+            "superseded observations must be replaced before saving")
     if any(item.claim_status != "reported" for item in observations):
         raise ReviewError("human coding cannot promote causal claim status")
     novelty_raw = payload.get("novelty_candidates", [])

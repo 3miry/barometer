@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "fixture_version": "2026-08-24.2",
+  "fixture_version": "2026-08-24.3",
   "synthetic": true,
   "status": "initial-human-review-required",
   "notes": "Designed evaluation cases, not observed public reports and not production evidence. Schema v2 separates state from change and treats every assertion as reported until corroborated.",
@@ -56,11 +56,11 @@
             "qualifiers": []
           },
           {
-            "concept_id": "beh_0005",
+            "concept_id": "beh_0041",
             "event_state": null,
             "valence": "negative",
-            "state": "uncertain",
-            "change": "increase",
+            "state": "low",
+            "change": "uncertain",
             "specificity": "specific",
             "claim_status": "reported",
             "suspected_layers": [
@@ -131,11 +131,11 @@
         "onset_precision": "unknown",
         "observations": [
           {
-            "concept_id": "beh_0002",
+            "concept_id": "beh_0040",
             "event_state": null,
             "valence": "negative",
-            "state": "uncertain",
-            "change": "increase",
+            "state": "low",
+            "change": "uncertain",
             "specificity": "specific",
             "claim_status": "reported",
             "suspected_layers": [
@@ -239,11 +239,11 @@
         "onset_precision": "unknown",
         "observations": [
           {
-            "concept_id": "beh_0011",
+            "concept_id": "beh_0044",
             "event_state": null,
             "valence": "negative",
-            "state": "uncertain",
-            "change": "increase",
+            "state": "low",
+            "change": "uncertain",
             "specificity": "specific",
             "claim_status": "reported",
             "suspected_layers": [
@@ -503,11 +503,11 @@
         "onset_precision": "broad_period",
         "observations": [
           {
-            "concept_id": "beh_0007",
+            "concept_id": "beh_0043",
             "event_state": null,
             "valence": "negative",
-            "state": "uncertain",
-            "change": "increase",
+            "state": "low",
+            "change": "decrease",
             "specificity": "specific",
             "claim_status": "reported",
             "suspected_layers": [
@@ -557,9 +557,9 @@
         "onset_precision": "unknown",
         "observations": [
           {
-            "concept_id": "beh_0019",
+            "concept_id": "beh_0045",
             "specificity": "broad",
-            "state": "present",
+            "state": "low",
             "change": "uncertain",
             "event_state": null,
             "valence": "negative",
@@ -1039,6 +1039,31 @@
         ]
       },
       "note": "Token efficiency records useful work per token, not price, latency, or mere brevity."
+    },
+    {
+      "id": "eval_040",
+      "text": "Sonnet 5 reasoning has become more consistent.",
+      "family": "claude",
+      "variant": "claude-sonnet-5",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "broad_period",
+        "observations": [
+          {
+            "concept_id": "beh_0042",
+            "specificity": "specific",
+            "state": "high",
+            "change": "increase",
+            "event_state": null,
+            "valence": "positive",
+            "claim_status": "reported",
+            "suspected_layers": ["model"],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "A neutral reliability axis represents improvement without inventing a separate positive behaviour."
     }
   ]
 }

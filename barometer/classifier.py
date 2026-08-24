@@ -21,7 +21,7 @@ from .vocabulary import (
 )
 
 
-CLASSIFIER_VERSION = "structured-rules-v1-dev"
+CLASSIFIER_VERSION = "structured-rules-v2-neutral-axes"
 
 
 VALID_ELIGIBILITY = frozenset((
@@ -100,7 +100,10 @@ RULES = (
     # Responsiveness and completion.
     _rule("beh_0001", r"\b(?:much\s+)?faster\b", change="decrease", valence="positive"),
     _rule("beh_0001", r"\b(?:slower|lag(?:gy)?|latency|taking longer to respond|taking forever)\b", change="increase", valence="negative"),
-    _rule("beh_0002", r"\b(?:cut(?:ting)? (?:answers? )?off|stopp?ed mid[- ](?:sentence|thought)|answer suddenly ended)\b", change="increase", valence="negative"),
+    _rule("beh_0040", r"\b(?:response completion (?:has )?(?:declined|decreased)|(?:now |recently )?cuts? (?:answers? )?off more often)\b", state="low", change="decrease", valence="negative"),
+    _rule("beh_0040", r"\b(?:cut(?:ting)? (?:answers? )?off|stopp?ed mid[- ](?:sentence|thought)|answer suddenly ended)\b", state="low", change="uncertain", valence="negative"),
+    _rule("beh_0040", r"\bresponse completion (?:has )?improved\b", state="high", change="increase", valence="positive"),
+    _rule("beh_0040", r"\bcompletes? (?:every|long) answers?\b", state="high", change="uncertain", valence="positive"),
     _rule("beh_0003", r"\bshorter answers?\b[^.]{0,80}\b(?:prefer|like|better)\b", change="decrease", valence="positive"),
     _rule("beh_0003", r"\b(?:became|become|gotten) (?:much )?more thorough\b|\bmore thorough lately\b", state="high", change="increase", valence="positive"),
     _rule("beh_0003", r"\b(?:more|much more) thorough\b", state="high", change="uncertain", valence="positive"),
@@ -108,12 +111,22 @@ RULES = (
     _rule("beh_0004", r"\b(?:skips?|ignored?)\b[^.]{0,80}\b(?:steps?|instructions?)\b|\bdid not complete the task\b", change="decrease", valence="negative"),
 
     # Correctness and output quality with supported specificity.
-    _rule("beh_0005", r"\b(?:facts?|dates?) (?:wrong|incorrect)\b|\b(?:getting|gets?) (?:basic )?(?:facts?|dates?) wrong\b|\binvent(?:ed|s)? (?:a )?(?:date|fact|source)\b", change="increase", valence="negative"),
-    _rule("beh_0006", r"\b(?:contradicts? (?:its )?(?:own )?(?:reasoning|step)|calculation is wrong|logical? errors?|reasoning (?:is )?wrong)\b", change="increase", valence="negative"),
-    _rule("beh_0007", r"\bcode\b[^.]{0,100}\b(?:does not run|doesn't run|fails?|crashes?|no longer performs|does not perform)\b|\bcompiles?\b[^.]{0,80}\b(?:fails?|no longer performs|does not perform)\b", change="increase", valence="negative"),
+    _rule("beh_0041", r"\b(?:more factual (?:errors?|mistakes?)|factual (?:accuracy|recall) (?:has )?(?:declined|decreased))\b", state="low", change="decrease", valence="negative"),
+    _rule("beh_0041", r"\b(?:facts?|dates?) (?:wrong|incorrect)\b|\b(?:getting|gets?) (?:basic )?(?:facts?|dates?) wrong\b|\binvent(?:ed|s)? (?:a )?(?:date|fact|source)\b", state="low", change="uncertain", valence="negative"),
+    _rule("beh_0041", r"\b(?:fewer factual mistakes?|more factually accurate|factual (?:accuracy|recall) (?:has )?improved)\b", state="high", change="increase", valence="positive"),
+    _rule("beh_0041", r"\bfactually accurate\b", state="high", change="uncertain", valence="positive"),
+    _rule("beh_0042", r"\b(?:reasoning reliability (?:has )?(?:declined|decreased)|more (?:logical|reasoning) errors?)\b", state="low", change="decrease", valence="negative"),
+    _rule("beh_0042", r"\b(?:contradicts? (?:its )?(?:own )?(?:reasoning|step)|calculation is wrong|logical? errors?|reasoning (?:is )?wrong)\b", state="low", change="uncertain", valence="negative"),
+    _rule("beh_0042", r"\b(?:logic|reasoning) (?:has )?(?:improved|become more (?:consistent|reliable))\b", state="high", change="increase", valence="positive"),
+    _rule("beh_0043", r"\bcode\b[^.]{0,100}\bno longer (?:runs?|performs?)\b|\bcompiles?\b[^.]{0,80}\bno longer performs?\b|\bcode functionality (?:has )?(?:declined|decreased)\b", state="low", change="decrease", valence="negative"),
+    _rule("beh_0043", r"\bcode\b[^.]{0,100}\b(?:does not run|doesn't run|fails?|crashes?|does not perform)\b|\bcompiles?\b[^.]{0,80}\b(?:fails?|does not perform)\b", state="low", change="uncertain", valence="negative"),
+    _rule("beh_0043", r"\b(?:working code more often|code functionality improved)\b", state="high", change="increase", valence="positive"),
+    _rule("beh_0043", r"\bworking code on the first (?:attempt|try)\b", state="high", change="uncertain", valence="positive"),
     _rule("beh_0008", r"\b(?:unusually |much )?clear explanations?\b|\bclearer writing\b", state="present", valence="positive"),
     _rule("beh_0008", r"\b(?:harder to follow|unclear writing|sloppy sentences?)\b", state="low", change="decrease", valence="negative"),
-    _rule("beh_0019", r"\b(?:keeps? )?(?:making|makes?) mistakes?\b|\bgetting things wrong\b|\bmore errors lately\b", state="present", valence="negative"),
+    _rule("beh_0045", r"\b(?:keeps? )?(?:making|makes?) mistakes?\b|\bgetting things wrong\b", state="low", change="uncertain", valence="negative"),
+    _rule("beh_0045", r"\bmore errors lately\b", state="low", change="decrease", valence="negative"),
+    _rule("beh_0045", r"\b(?:more correct lately|getting fewer things wrong)\b", state="high", change="increase", valence="positive"),
     _rule("beh_0038", r"\b(?:generally\s+)?perform(?:s|ed|ing)?\s+(?:a\s+(?:bit|lot)\s+|slightly\s+|somewhat\s+|much\s+|far\s+)?worse\b", state="low", change="uncertain", valence="negative"),
     _rule("beh_0038", r"\b(?:generally\s+)?perform(?:s|ed|ing)?\s+(?:a\s+(?:bit|lot)\s+|slightly\s+|somewhat\s+|much\s+|far\s+)?better\b", state="high", change="uncertain", valence="positive"),
     _rule("beh_0038", r"\b(?:overall|general) performance\b[^.]{0,40}\b(?:declined|degraded|got worse)\b", state="low", change="decrease", valence="negative"),
@@ -124,7 +137,10 @@ RULES = (
     # Refusal, repetition, context, and memory.
     _rule("beh_0009", r"\b(?:refusing|refuses|refused)\b[^.]{0,100}\b(?:requests?|answer|formatting)?\b|\b(?:would not|won't) answer\b", change="increase", valence="negative"),
     _rule("beh_0010", r"\brepeats?\b[^.]{0,80}\b(?:paragraphs?|same thing|itself)\b|\bmore repetitive\b", change="increase", valence="negative"),
-    _rule("beh_0011", r"\b(?:forgot|forgets?)\b[^.]{0,80}\b(?:first message|earlier|context)\b|\b(?:lost|loses?) (?:track of )?context\b|\bdegrades?\b[^.]{0,80}\b(?:long context|context window|compaction)\b", change="increase", valence="negative"),
+    _rule("beh_0044", r"\b(?:degrades?|has (?:declined|decreased))\b[^.]{0,80}\b(?:long context|context retention|context window|compaction)\b", state="low", change="decrease", valence="negative"),
+    _rule("beh_0044", r"\b(?:forgot|forgets?)\b[^.]{0,80}\b(?:first message|earlier|context)\b|\b(?:lost|loses?) (?:track of )?context\b", state="low", change="uncertain", valence="negative"),
+    _rule("beh_0044", r"\b(?:holds?|retains?)\b[^.]{0,80}\b(?:context|conversation)\b[^.]{0,40}\bbetter\b", state="high", change="increase", valence="positive"),
+    _rule("beh_0044", r"\b(?:holds?|retains?)\b[^.]{0,80}\b(?:context|conversation)\b[^.]{0,40}\bwell\b", state="high", change="uncertain", valence="positive"),
     _rule("beh_0012", r"\bremembered\b[^.]{0,100}\b(?:saved preference|from last time|previous (?:chat|conversation))\b", change="increase", valence="positive"),
 
     # Interaction dimensions. Loss/decrease rules precede simple presence.

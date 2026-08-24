@@ -1,7 +1,7 @@
 """Versioned governed behaviour concepts; not connected to detector v0 yet."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from pathlib import Path
 import re
@@ -317,6 +317,7 @@ def validate_ledger(payload: dict) -> tuple[BehaviourConcept, ...]:
     if not isinstance(events, list) or not events:
         raise VocabularyError("vocabulary ledger must contain events")
     concepts = []
+    concept_indexes: dict[str, int] = {}
     event_ids = set()
     concept_ids = set()
     slugs = set()
@@ -344,7 +345,29 @@ def validate_ledger(payload: dict) -> tuple[BehaviourConcept, ...]:
                 raise VocabularyError(f"duplicate concept slug: {concept.slug}")
             concept_ids.add(concept.id)
             slugs.add(concept.slug)
+            concept_indexes[concept.id] = len(concepts)
             concepts.append(concept)
+        elif event_type == "concept_superseded":
+            concept_id = event.get("concept_id")
+            replacement_id = event.get("replacement_id")
+            if concept_id not in concept_ids or replacement_id not in concept_ids:
+                raise VocabularyError(
+                    f"{event_id} supersession references an unknown concept")
+            if concept_id == replacement_id:
+                raise VocabularyError(
+                    f"{event_id} concept cannot supersede itself")
+            index = concept_indexes[concept_id]
+            concept = concepts[index]
+            replacement_concept = concepts[concept_indexes[replacement_id]]
+            if concept.status == "superseded":
+                raise VocabularyError(
+                    f"{event_id} concept is already superseded")
+            if concept.shape != replacement_concept.shape:
+                raise VocabularyError(
+                    f"{event_id} replacement must have the same shape")
+            _nonempty_text(event.get("rationale"), f"{event_id}.rationale")
+            concepts[index] = replace(
+                concept, status="superseded", publishable=False)
         elif event_type != "hierarchy_edge_created":
             raise VocabularyError(f"unsupported ledger event type: {event_type}")
     validated = tuple(concepts)
@@ -366,6 +389,17 @@ def load_hierarchy(path: str | Path = LEDGER_PATH) -> tuple[HierarchyEdge, ...]:
 
 def concepts_by_id(path: str | Path = LEDGER_PATH) -> dict[str, BehaviourConcept]:
     return {concept.id: concept for concept in load_vocabulary(path)}
+
+
+def concept_replacements(path: str | Path = LEDGER_PATH) -> dict[str, str]:
+    with Path(path).open(encoding="utf-8") as handle:
+        payload = json.load(handle)
+    validate_ledger(payload)
+    return {
+        event["concept_id"]: event["replacement_id"]
+        for event in payload["events"]
+        if event.get("type") == "concept_superseded"
+    }
 
 
 def narrower_concept_ids(

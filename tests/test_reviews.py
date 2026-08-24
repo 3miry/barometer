@@ -78,7 +78,7 @@ class ReviewValidationTests(unittest.TestCase):
         }
         with self.assertRaises(ReviewError):
             validate_review_decision("one::claude", "one", "hash", base)
-        promoted = observation("beh_0019")
+        promoted = observation("beh_0045")
         promoted["claim_status"] = "attributed"
         with self.assertRaises(ReviewError):
             validate_review_decision(
@@ -97,8 +97,21 @@ class ReviewValidationTests(unittest.TestCase):
                     "target_family": "claude",
                     "target_variant": "claude-opus-5",
                     "observations": [
-                        observation("beh_0019"), observation("beh_0005"),
+                        observation("beh_0045"), observation("beh_0041"),
                     ],
+                    "novelty_candidates": [],
+                    "review_note": "",
+                },
+            )
+
+    def test_rejects_new_saves_using_a_superseded_concept(self):
+        with self.assertRaisesRegex(ReviewError, "must be replaced"):
+            validate_review_decision(
+                "one::claude", "one", "hash", {
+                    "status": "corrected",
+                    "target_family": "claude",
+                    "target_variant": "claude-opus-5",
+                    "observations": [observation("beh_0019")],
                     "novelty_candidates": [],
                     "review_note": "",
                 },
@@ -117,6 +130,8 @@ class ReviewStorageTests(unittest.TestCase):
         self.assertIn("ev.key==='['", page)
         self.assertNotIn("key==='a'", page)
         self.assertNotIn("key==='d'", page)
+        self.assertIn("reclassify", page)
+        self.assertIn("data-replace", page)
 
     def test_build_is_read_only_and_review_db_contains_no_raw_text(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -154,7 +169,7 @@ class ReviewStorageTests(unittest.TestCase):
                     "status": "approved",
                     "target_family": "claude",
                     "target_variant": "claude-opus-5",
-                    "observations": [observation("beh_0019")],
+                    "observations": [observation("beh_0045")],
                     "novelty_candidates": [],
                     "review_note": "sounds right",
                 }, now=123.0,
@@ -235,7 +250,10 @@ class ReviewStorageTests(unittest.TestCase):
 
     def test_metadata_includes_hierarchy_parent(self):
         concepts = {item["id"]: item for item in review_metadata()["concepts"]}
-        self.assertEqual(concepts["beh_0005"]["parent"], "correctness")
+        self.assertEqual(concepts["beh_0041"]["parent"], "correctness")
+        self.assertEqual(concepts["beh_0041"]["status"], "provisional")
+        self.assertEqual(concepts["beh_0005"]["status"], "superseded")
+        self.assertEqual(concepts["beh_0005"]["replacement_id"], "beh_0041")
 
     def test_legacy_single_report_decision_is_preserved_as_target_unit(self):
         with tempfile.TemporaryDirectory() as directory:
