@@ -31,6 +31,12 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - `SIGNAL_DETECTION.md` — the versioned post-MVP architecture for governed
   behaviour concepts, separate valence, novelty discovery, and PV-inspired
   signal review. It is a design contract, not an activated detector.
+- `PROBING_METHOD.md` — the cost-bounded two-lane collection contract: broad
+  sampled discovery for novelty, precise governed probes for surveillance, and
+  strict provenance so their raw counts are not casually combined.
+- `review_classifier.py` and `barometer/reviews.py` — private localhost-only
+  human review of shadow proposals. Source reports are opened read-only and
+  structured reviewer decisions are kept in a separate ignored database.
 - `serve_barometer.py` and `manage_reports.py` — local form/API evaluation and
   deliberate queue review. See `USER_REPORTS.md`.
 - `tests/` — torture suite: quiet weather doesn't alarm; cascades can't
@@ -62,6 +68,17 @@ python shadow_classifier.py
 Add `--db barometer.db` to inspect retained local rows read-only. A perfect
 development-contract score is not real-world accuracy; the same examples were
 used to design the initial deterministic rules.
+
+Review retained proposals locally without changing the source database or
+public weather:
+
+```powershell
+python review_classifier.py --source-db barometer.db
+```
+
+Then open `http://127.0.0.1:8766/`. Decisions are written to the ignored
+`observation/private/classifier_reviews.db`; approval records a human label only
+and does not activate classification or collection.
 
 ## Data and credentials
 - The repository contains no API credentials. Live transports read credentials

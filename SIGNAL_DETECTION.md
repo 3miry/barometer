@@ -303,6 +303,9 @@ enough.
 ### Two collection lanes
 
 Barometer uses discovery and surveillance as separate but connected lanes.
+The operational sampling, probe-governance, cost, and counting contract is in
+`PROBING_METHOD.md`. In particular, discovery chatter is bounded with sampling
+and quotas rather than complaint-keyword preselection.
 
 #### Discovery sample
 
