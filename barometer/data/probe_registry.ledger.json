@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "ledger_id": "barometer-probe-registry",
+  "status": "draft",
+  "notes": "Append-only offline registry. It contains no active probes and does not authorise collection, API use, scheduling, or spend.",
+  "events": []
+}

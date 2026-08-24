@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import hashlib
 import json
+from pathlib import Path
 import sqlite3
 import time
 
@@ -185,6 +186,40 @@ def _observation_json(observation: CodedObservation) -> dict:
     return payload
 
 
+def _stored_row(row: sqlite3.Row) -> dict:
+    result = dict(row)
+    result["observations"] = json.loads(result.pop("observations_json"))
+    result["novelty_candidates"] = json.loads(result.pop("novelty_json"))
+    return result
+
+
+def load_review_decisions_read_only(path: str | Path) -> dict[str, dict]:
+    """Load the current review units without creating or migrating anything."""
+    database = Path(path).resolve()
+    if not database.exists():
+        raise ReviewError(f"review database does not exist: {database}")
+    connection = sqlite3.connect(
+        f"file:{database.as_posix()}?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    try:
+        connection.execute("PRAGMA query_only=ON")
+        table = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='classifier_review_units'"
+        ).fetchone()
+        if table is None:
+            raise ReviewError("review database has no current review-unit table")
+        rows = connection.execute(
+            "SELECT unit_id,source_report_id,source_fingerprint,"
+            "classifier_version,status,target_family,target_variant,"
+            "observations_json,novelty_json,review_note,reviewed_at "
+            "FROM classifier_review_units ORDER BY reviewed_at"
+        ).fetchall()
+        return {row["unit_id"]: _stored_row(row) for row in rows}
+    finally:
+        connection.close()
+
+
 class ReviewStore:
     def __init__(self, path: str):
         self.db = sqlite3.connect(path)
@@ -296,10 +331,7 @@ class ReviewStore:
         ).fetchone()
         if row is None:
             return None
-        result = dict(row)
-        result["observations"] = json.loads(result.pop("observations_json"))
-        result["novelty_candidates"] = json.loads(result.pop("novelty_json"))
-        return result
+        return _stored_row(row)
 
     def all(self) -> dict[str, dict]:
         rows = self.db.execute(

@@ -146,9 +146,14 @@ sample has become an undocumented complaint query.
 ## Implementation order
 
 1. Finish the human review queue and label a real, bounded retained sample.
+   **Completed for the first development batch.**
 2. Add collection-provenance fields and a versioned probe-registry schema, still
-   disconnected from live adapters.
+   disconnected from live adapters. **Implemented as an inactive storage and
+   governance contract; the checked-in registry contains no probes.**
 3. Replay retained data to estimate discovery yield, probe overlap, and chatter.
+   **Aggregate review replay is implemented. Legacy rows lack query-run
+   provenance, so their chatter/yield is measurable but discovery attribution
+   and overlap correctly remain unavailable.**
 4. Propose a costed per-source pilot budget for explicit approval.
 5. Only then add supervised live collection flags; scheduling remains a separate
    decision.

@@ -98,12 +98,14 @@ def _target_label(family: str, variant_key: str | None) -> str:
 def build_review_items(
     source_db: str | Path,
     review_db: str | Path,
+    *,
+    decisions: dict[str, dict] | None = None,
 ) -> list[dict]:
-    decisions = {}
-    review_path = Path(review_db)
-    review_path.parent.mkdir(parents=True, exist_ok=True)
-    with ReviewStore(str(review_path)) as store:
-        decisions = store.all()
+    if decisions is None:
+        review_path = Path(review_db)
+        review_path.parent.mkdir(parents=True, exist_ok=True)
+        with ReviewStore(str(review_path)) as store:
+            decisions = store.all()
 
     items = []
     for row in load_source_reports(source_db):

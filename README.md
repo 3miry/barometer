@@ -19,8 +19,8 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - `barometer/vocabulary.py` and `barometer/data/behaviour_vocabulary.ledger.json`
   — validated append-only concept definitions, hierarchy edges, and coding
   contract. Broad parents, co-coding, state/change, suspected layer, and
-  elicitation context are explicit. All concepts remain provisional and cannot
-  enter public output yet.
+  elicitation context are explicit. Concepts remain provisional or explicitly
+  superseded and cannot enter public output yet.
 - `tests/fixtures/behaviour_reports.v1.json` — explicitly synthetic, balanced
   human-review cases for future ingress and classifier evaluation; these are
   reported assertions, not production findings.
@@ -39,6 +39,12 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
   structured reviewer decisions are kept in a separate ignored database.
   Comparative reports become linked per-model slices so opposing directions or
   valences are coded independently without multiplying source provenance.
+- `barometer/probes.py` and `barometer/data/probe_registry.ledger.json` —
+  offline-only collection-run provenance and an append-only probe lifecycle.
+  The registry starts empty and cannot activate collection.
+- `analyze_reviews.py` — read-only aggregate replay of the human-reviewed batch,
+  including source yield, novelty, small-sample proposal diagnostics, and query
+  provenance coverage. It emits no report text or URLs.
 - `serve_barometer.py` and `manage_reports.py` — local form/API evaluation and
   deliberate queue review. See `USER_REPORTS.md`.
 - `tests/` — torture suite: quiet weather doesn't alarm; cascades can't
@@ -81,6 +87,16 @@ python review_classifier.py --source-db barometer.db
 Then open `http://127.0.0.1:8766/`. Decisions are written to the ignored
 `observation/private/classifier_reviews.db`; approval records a human label only
 and does not activate classification or collection.
+
+After a bounded batch is complete, inspect its aggregate yield without changing
+either database:
+
+```powershell
+python analyze_reviews.py
+```
+
+The output is explicitly a development-batch diagnostic, not held-out accuracy
+or a platform-prevalence estimate.
 
 ## Data and credentials
 - The repository contains no API credentials. Live transports read credentials
