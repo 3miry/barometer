@@ -9,7 +9,7 @@ import tempfile
 import threading
 import unittest
 
-from barometer.review_app import build_review_items, review_metadata
+from barometer.review_app import build_review_items, render_review_page, review_metadata
 from barometer.reviews import (
     ReviewError, ReviewStore, review_unit_id, source_fingerprint,
     validate_review_decision,
@@ -106,6 +106,18 @@ class ReviewValidationTests(unittest.TestCase):
 
 
 class ReviewStorageTests(unittest.TestCase):
+    def test_review_page_groups_comparisons_and_keeps_actions_click_only(self):
+        page = render_review_page("test-token").decode("utf-8")
+
+        self.assertIn("Reviewer guide · what each decision means", page)
+        self.assertIn("Comparison source", page)
+        self.assertIn("Previous target", page)
+        self.assertIn("aria-live=\"polite\"", page)
+        self.assertIn("key==='j'", page)
+        self.assertIn("ev.key==='['", page)
+        self.assertNotIn("key==='a'", page)
+        self.assertNotIn("key==='d'", page)
+
     def test_build_is_read_only_and_review_db_contains_no_raw_text(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "source.db"
