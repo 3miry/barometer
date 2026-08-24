@@ -444,15 +444,20 @@ class TickTests(unittest.TestCase):
             self.assertIn('"default_window":"21d"', public_html)
             self.assertIn('data-window="21d"', public_html)
             self.assertIn('data-variant="claude-opus-5"', public_html)
+            self.assertIn(
+                "new URLSearchParams(location.search).get('model')",
+                public_html,
+            )
             with open(os.path.join(d, "public", "index.html"),
                       encoding="utf-8") as handle:
                 landing_html = handle.read()
             self.assertNotIn("SECRET_RAW_WORDS", landing_html)
             self.assertNotIn("private-test", landing_html)
-            self.assertIn("Most reported right now", landing_html)
-            self.assertIn("Search by lab, family, or model", landing_html)
+            self.assertIn("Most reported models right now", landing_html)
+            self.assertIn("Search exact models or labs", landing_html)
             self.assertIn('data-display-window="now"', landing_html)
             self.assertIn('data-window-pane="21d"', landing_html)
+            self.assertNotIn('class="stats-row"', landing_html)
             with open(os.path.join(d, "public", "report.html"),
                       encoding="utf-8") as handle:
                 report_form = handle.read()
@@ -476,16 +481,18 @@ class TickTests(unittest.TestCase):
             render_landing(models, out_path, generated_at=NOW, window_days=21)
             with open(out_path, encoding="utf-8") as handle:
                 page = handle.read()
-            self.assertLess(
-                page.index('data-model="claude"'),
-                page.index('data-model="gpt"'),
-            )
             self.assertIn('data-lab-filter="anthropic"', page)
             self.assertIn('data-lab-filter="openai"', page)
             self.assertIn("Sonnet", page)
             self.assertIn("GPT-5", page)
             self.assertIn("Opus 5", page)
-            self.assertIn("Unspecified Claude model", page)
+            self.assertEqual(page.count('class="model-card '), 6)
+            self.assertIn('data-variant="claude-opus-5"', page)
+            self.assertIn('barometer_claude.html?model=claude-opus-5', page)
+            self.assertIn("Family-wide reports without an exact model", page)
+            self.assertIn('data-now="1" data-7d="1" data-21d="1"', page)
+            self.assertIn("grid-template-columns:repeat(3,minmax(0,1fr))", page)
+            self.assertNotIn('class="stats-row"', page)
             self.assertIn("Preview data", page)
             self.assertIn("Report weather", page)
             self.assertIn('class="category-cloud" role="img"', page)

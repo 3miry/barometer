@@ -60,10 +60,11 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 | Gemini | Google | Gemini 3.1 Pro, Gemini Flash 3.5, Gemini Flash-Lite 3.7 |
 
 Detection still establishes its signal baseline at family level, but the public
-landing page breaks report volume down by exact model whenever a post names one
-explicitly. Ambiguous posts remain in a visible unspecified bucket rather than
-being guessed into a variant. Monitored models remain visible at zero so absence
-of reports is distinguishable from absence of tracking.
+landing page is model-first: every monitored exact model has its own column card,
+report count, weather, and theme summary. Ambiguous family reports remain in a
+separate unattributed strip rather than being guessed into a variant or colouring
+a model card. Monitored models remain visible at zero so absence of reports is
+distinguishable from absence of tracking.
 
 The landing page defaults to a rolling 24-hour "Now" view, with 7-day and
 21-day selectors for context. Family detail pages default to 21 days and can be
@@ -71,7 +72,7 @@ filtered to an exact monitored model. Public JSON publishes all three windows
 as aggregates only; raw report text, account names, community names, and URLs
 remain private.
 
-Each family card now renders a code-native weather scene. Dominant report themes
+Each model card renders a code-native weather scene. Dominant report themes
 choose the visual metaphor (quality as rain, sluggishness as fog, lazy/shortened
 outputs as heat haze, refusals as a storm, and no reports as a clear night),
 while corroborated signals override the theme with a storm. The foreground cloud
