@@ -72,8 +72,15 @@ class StructuredClassifierTests(unittest.TestCase):
         observation = classify_report(text).observations[0]
         self.assertEqual(observation.concept_id, "beh_0003")
         self.assertEqual(observation.state, "high")
-        self.assertEqual(observation.change, "increase")
+        self.assertEqual(observation.change, "uncertain")
         self.assertEqual(observation.valence, "positive")
+
+    def test_temporal_thoroughness_change_is_not_confused_with_comparison(self):
+        observation = classify_report(
+            "ChatGPT has become much more thorough lately."
+        ).observations[0]
+        self.assertEqual(observation.state, "high")
+        self.assertEqual(observation.change, "increase")
 
     def test_multiple_exact_models_require_attribution_review(self):
         text = "Opus 5 is warmer than Sonnet 5."
