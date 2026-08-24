@@ -129,8 +129,12 @@ sample has become an undocumented complaint query.
 
 ## Counting rules
 
-- One source report is one report after stable-ID and cascade handling, even if
-  multiple lanes or probes retrieved it.
+- One source report keeps one stable provenance identity after stable-ID and
+  cascade handling, even if multiple lanes or probes retrieved it.
+- A comparison may create one coding slice per explicitly mentioned model. Each
+  slice can carry different behaviour direction and valence. It contributes at
+  most once to each model/behaviour cell; fleet-wide unique-source totals count
+  the shared source once rather than summing its model slices.
 - Keep all collection provenance on the deduplicated record.
 - Never add targeted and discovery counts and present the sum as platform
   prevalence.

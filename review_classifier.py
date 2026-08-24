@@ -10,11 +10,10 @@ import sys
 from urllib.parse import unquote, urlsplit
 
 from barometer.review_app import (
-    build_review_items, load_source_reports, render_review_page,
-    review_metadata,
+    build_review_items, render_review_page, review_metadata,
 )
 from barometer.reviews import (
-    ReviewError, ReviewStore, source_fingerprint, validate_review_decision,
+    ReviewError, ReviewStore, validate_review_decision,
 )
 
 
@@ -123,29 +122,29 @@ class ReviewHandler(BaseHTTPRequestHandler):
         if length <= 0 or length > MAX_REVIEW_BODY:
             self._json(413, {"error": "review is empty or too large"})
             return
-        report_id = unquote(path[len(prefix):])
+        unit_id = unquote(path[len(prefix):])
         try:
             payload = json.loads(self.rfile.read(length))
-            rows = {
-                row["id"]: row
-                for row in load_source_reports(self.server.source_db)
+            items = {
+                item["review_unit_id"]: item
+                for item in build_review_items(
+                    self.server.source_db, self.server.review_db)
             }
-            source_row = rows.get(report_id)
-            if source_row is None:
-                self._json(404, {"error": "source report no longer exists"})
+            current_item = items.get(unit_id)
+            if current_item is None:
+                self._json(404, {"error": "review target no longer exists"})
                 return
-            current_fingerprint = source_fingerprint(
-                report_id, source_row["text"])
+            current_fingerprint = current_item["source_fingerprint"]
             if payload.get("source_fingerprint") != current_fingerprint:
                 self._json(409, {
                     "error": "source report changed; reload before reviewing",
                 })
                 return
             decision = validate_review_decision(
-                report_id, current_fingerprint, payload)
+                unit_id, current_item["report_id"], current_fingerprint, payload)
             with ReviewStore(self.server.review_db) as store:
                 store.put(decision)
-                saved = store.get(report_id)
+                saved = store.get(unit_id)
         except json.JSONDecodeError:
             self._json(400, {"error": "request body is not valid JSON"})
             return

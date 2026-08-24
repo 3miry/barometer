@@ -102,7 +102,8 @@ RULES = (
     _rule("beh_0001", r"\b(?:slower|lag(?:gy)?|latency|taking longer to respond|taking forever)\b", change="increase", valence="negative"),
     _rule("beh_0002", r"\b(?:cut(?:ting)? (?:answers? )?off|stopp?ed mid[- ](?:sentence|thought)|answer suddenly ended)\b", change="increase", valence="negative"),
     _rule("beh_0003", r"\bshorter answers?\b[^.]{0,80}\b(?:prefer|like|better)\b", change="decrease", valence="positive"),
-    _rule("beh_0003", r"\b(?:less detailed|more thorough|bare[- ]minimum answers?|surface level)\b", change="decrease", valence="negative"),
+    _rule("beh_0003", r"\b(?:more|much more) thorough\b", state="high", change="increase", valence="positive"),
+    _rule("beh_0003", r"\b(?:less detailed|bare[- ]minimum answers?|surface level)\b", state="low", change="decrease", valence="negative"),
     _rule("beh_0004", r"\b(?:skips?|ignored?)\b[^.]{0,80}\b(?:steps?|instructions?)\b|\bdid not complete the task\b", change="decrease", valence="negative"),
 
     # Correctness and output quality with supported specificity.

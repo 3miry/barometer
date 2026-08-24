@@ -337,6 +337,12 @@ known, and overlap provenance. Deduplicate the same source report across lanes
 before counting it. A stable probe can support within-probe temporal comparisons;
 combining discovery and targeted counts requires appropriate sampling treatment.
 
+Multi-model comparisons are reviewed as linked source-by-target slices. The raw
+source retains one provenance identity, but each explicitly mentioned model gets
+independent behaviour, direction, and valence coding. Never copy a source-level
+classification across all mentioned models: "A is warmer than B" is not the
+same observation for A and B.
+
 The feedback loop is:
 
 `discovery sample → private candidate cluster → human promotion → probe registry → targeted surveillance`

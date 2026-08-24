@@ -30,7 +30,8 @@ class ReviewError(ValueError):
 
 @dataclass(frozen=True)
 class ReviewDecision:
-    report_id: str
+    unit_id: str
+    source_report_id: str
     source_fingerprint: str
     classifier_version: str
     status: str
@@ -43,8 +44,9 @@ class ReviewDecision:
 
 
 REVIEW_SCHEMA = """
-CREATE TABLE IF NOT EXISTS classifier_reviews(
-  report_id TEXT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS classifier_review_units(
+  unit_id TEXT PRIMARY KEY,
+  source_report_id TEXT NOT NULL,
   source_fingerprint TEXT NOT NULL,
   classifier_version TEXT NOT NULL,
   status TEXT NOT NULL,
@@ -55,7 +57,9 @@ CREATE TABLE IF NOT EXISTS classifier_reviews(
   review_note TEXT,
   reviewed_at REAL NOT NULL);
 CREATE INDEX IF NOT EXISTS ix_cr_status_reviewed
-  ON classifier_reviews(status, reviewed_at);
+  ON classifier_review_units(status, reviewed_at);
+CREATE INDEX IF NOT EXISTS ix_cr_source
+  ON classifier_review_units(source_report_id);
 """
 
 
@@ -63,6 +67,16 @@ def source_fingerprint(report_id: str, text: str) -> str:
     return hashlib.sha256(
         f"{report_id}\0{text}".encode("utf-8")
     ).hexdigest()[:24]
+
+
+def review_unit_id(
+    source_report_id: str,
+    seed_family: str | None,
+    seed_variant: str | None,
+) -> str:
+    """Stable reviewer unit: one source report viewed through one model target."""
+    target = seed_variant or seed_family or "unresolved"
+    return f"{source_report_id}::{target}"
 
 
 def _clean_text(value, field: str, maximum: int) -> str:
@@ -84,7 +98,8 @@ def _valid_variant_keys(family: str) -> set[str]:
 
 
 def validate_review_decision(
-    report_id: str,
+    unit_id: str,
+    source_report_id: str,
     source_hash: str,
     payload: dict,
     *,
@@ -92,10 +107,12 @@ def validate_review_decision(
 ) -> ReviewDecision:
     if not isinstance(payload, dict):
         raise ReviewError("review must be a JSON object")
-    report_id = _clean_text(report_id, "report_id", 128)
+    unit_id = _clean_text(unit_id, "unit_id", 240)
+    source_report_id = _clean_text(source_report_id, "source_report_id", 128)
     source_hash = _clean_text(source_hash, "source_fingerprint", 64)
-    if not report_id or not source_hash:
-        raise ReviewError("report id and source fingerprint are required")
+    if not unit_id or not source_report_id or not source_hash:
+        raise ReviewError(
+            "review unit, source report id, and source fingerprint are required")
     status = payload.get("status")
     if status not in ALLOWED_REVIEW_STATUSES:
         raise ReviewError("review status is not recognised")
@@ -116,9 +133,6 @@ def validate_review_decision(
         raise ReviewError(str(exc)) from exc
     if any(item.claim_status != "reported" for item in observations):
         raise ReviewError("human coding cannot promote causal claim status")
-    if status == "rejected" and observations:
-        raise ReviewError("rejected reviews cannot retain observations")
-
     novelty_raw = payload.get("novelty_candidates", [])
     if not isinstance(novelty_raw, list):
         raise ReviewError("novelty_candidates must be a list")
@@ -132,9 +146,13 @@ def validate_review_decision(
         raise ReviewError("novelty candidates cannot be empty")
     if len({item.casefold() for item in novelty}) != len(novelty):
         raise ReviewError("novelty candidates contain duplicates")
+    if status == "rejected" and (observations or novelty):
+        raise ReviewError(
+            "rejected target slices cannot retain observations or novelty")
     note = _clean_text(payload.get("review_note"), "review_note", MAX_REVIEW_NOTE)
     return ReviewDecision(
-        report_id=report_id,
+        unit_id=unit_id,
+        source_report_id=source_report_id,
         source_fingerprint=source_hash,
         classifier_version=CLASSIFIER_VERSION,
         status=status,
@@ -159,6 +177,50 @@ class ReviewStore:
         self.db = sqlite3.connect(path)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(REVIEW_SCHEMA)
+        self._migrate_legacy_reviews()
+
+    def _migrate_legacy_reviews(self) -> None:
+        """Preserve decisions made before report-by-target review existed."""
+        table = self.db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='classifier_reviews'"
+        ).fetchone()
+        if table is None:
+            return
+        columns = {
+            row[1] for row in self.db.execute(
+                "PRAGMA table_info(classifier_reviews)")
+        }
+        required = {
+            "report_id", "source_fingerprint", "classifier_version", "status",
+            "target_family", "target_variant", "observations_json",
+            "novelty_json", "review_note", "reviewed_at",
+        }
+        if not required <= columns:
+            return
+        rows = self.db.execute(
+            "SELECT report_id,source_fingerprint,classifier_version,status,"
+            "target_family,target_variant,observations_json,novelty_json,"
+            "review_note,reviewed_at FROM classifier_reviews"
+        ).fetchall()
+        for row in rows:
+            unit_id = review_unit_id(
+                row["report_id"], row["target_family"], row["target_variant"])
+            self.db.execute(
+                "INSERT OR IGNORE INTO classifier_review_units("
+                "unit_id,source_report_id,source_fingerprint,classifier_version,"
+                "status,target_family,target_variant,observations_json,"
+                "novelty_json,review_note,reviewed_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    unit_id, row["report_id"], row["source_fingerprint"],
+                    row["classifier_version"], row["status"],
+                    row["target_family"], row["target_variant"],
+                    row["observations_json"], row["novelty_json"],
+                    row["review_note"], row["reviewed_at"],
+                ),
+            )
+        self.db.commit()
 
     def close(self) -> None:
         if self.db is not None:
@@ -182,11 +244,12 @@ class ReviewStore:
             separators=(",", ":"),
         )
         self.db.execute(
-            "INSERT INTO classifier_reviews("
-            "report_id,source_fingerprint,classifier_version,status,"
+            "INSERT INTO classifier_review_units("
+            "unit_id,source_report_id,source_fingerprint,classifier_version,status,"
             "target_family,target_variant,observations_json,novelty_json,"
-            "review_note,reviewed_at) VALUES (?,?,?,?,?,?,?,?,?,?) "
-            "ON CONFLICT(report_id) DO UPDATE SET "
+            "review_note,reviewed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(unit_id) DO UPDATE SET "
+            "source_report_id=excluded.source_report_id,"
             "source_fingerprint=excluded.source_fingerprint,"
             "classifier_version=excluded.classifier_version,"
             "status=excluded.status,target_family=excluded.target_family,"
@@ -195,7 +258,8 @@ class ReviewStore:
             "novelty_json=excluded.novelty_json,"
             "review_note=excluded.review_note,reviewed_at=excluded.reviewed_at",
             (
-                decision.report_id,
+                decision.unit_id,
+                decision.source_report_id,
                 decision.source_fingerprint,
                 decision.classifier_version,
                 decision.status,
@@ -209,12 +273,13 @@ class ReviewStore:
         )
         self.db.commit()
 
-    def get(self, report_id: str) -> dict | None:
+    def get(self, unit_id: str) -> dict | None:
         row = self.db.execute(
-            "SELECT report_id,source_fingerprint,classifier_version,status,"
+            "SELECT unit_id,source_report_id,source_fingerprint,"
+            "classifier_version,status,"
             "target_family,target_variant,observations_json,novelty_json,"
-            "review_note,reviewed_at FROM classifier_reviews WHERE report_id=?",
-            (report_id,),
+            "review_note,reviewed_at FROM classifier_review_units WHERE unit_id=?",
+            (unit_id,),
         ).fetchone()
         if row is None:
             return None
@@ -225,6 +290,6 @@ class ReviewStore:
 
     def all(self) -> dict[str, dict]:
         rows = self.db.execute(
-            "SELECT report_id FROM classifier_reviews ORDER BY reviewed_at"
+            "SELECT unit_id FROM classifier_review_units ORDER BY reviewed_at"
         ).fetchall()
-        return {row["report_id"]: self.get(row["report_id"]) for row in rows}
+        return {row["unit_id"]: self.get(row["unit_id"]) for row in rows}

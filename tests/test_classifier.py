@@ -69,6 +69,11 @@ class StructuredClassifierTests(unittest.TestCase):
         self.assertEqual(mentioned_families(text), frozenset(("gemini", "gpt")))
         self.assertEqual(
             attribution_review_status(text, "gemini"), "multi_family_review")
+        observation = classify_report(text).observations[0]
+        self.assertEqual(observation.concept_id, "beh_0003")
+        self.assertEqual(observation.state, "high")
+        self.assertEqual(observation.change, "increase")
+        self.assertEqual(observation.valence, "positive")
 
     def test_multiple_exact_models_require_attribution_review(self):
         text = "Opus 5 is warmer than Sonnet 5."
@@ -79,6 +84,16 @@ class StructuredClassifierTests(unittest.TestCase):
         self.assertEqual(
             attribution_review_status(text, "claude"),
             "multi_variant_review",
+        )
+
+    def test_generic_model_line_names_route_to_their_family(self):
+        self.assertEqual(
+            mentioned_families("The Opus models are worse than ChatGPT here."),
+            frozenset(("claude", "gpt")),
+        )
+        self.assertEqual(
+            mentioned_families("Sonnet and GPT behave differently."),
+            frozenset(("claude", "gpt")),
         )
 
 

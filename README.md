@@ -37,6 +37,8 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - `review_classifier.py` and `barometer/reviews.py` — private localhost-only
   human review of shadow proposals. Source reports are opened read-only and
   structured reviewer decisions are kept in a separate ignored database.
+  Comparative reports become linked per-model slices so opposing directions or
+  valences are coded independently without multiplying source provenance.
 - `serve_barometer.py` and `manage_reports.py` — local form/API evaluation and
   deliberate queue review. See `USER_REPORTS.md`.
 - `tests/` — torture suite: quiet weather doesn't alarm; cascades can't

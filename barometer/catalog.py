@@ -20,7 +20,8 @@ MODEL_CATALOG = {
         "label": "Claude",
         "lab": "Anthropic",
         "recognised_terms": (
-            "Claude", "Fable 5", "Opus 5", "Sonnet 5", "Opus 4.8",
+            "Claude", "Fable 5", "Opus", "Opus 5", "Sonnet",
+            "Sonnet 5", "Opus 4.8",
         ),
         "tracked_variants": (
             {"key": "claude-fable-5", "label": "Fable 5", "aliases": ("Fable 5",)},
@@ -33,7 +34,7 @@ MODEL_CATALOG = {
         "label": "GPT / ChatGPT",
         "lab": "OpenAI",
         "recognised_terms": (
-            "ChatGPT", "GPT-5.5", "GPT-5.6", "Sol", "Luna", "Terra",
+            "ChatGPT", "GPT", "GPT-5.5", "GPT-5.6", "Sol", "Luna", "Terra",
         ),
         "tracked_variants": (
             {"key": "gpt-5.5", "label": "GPT-5.5", "aliases": ("GPT-5.5", "GPT 5.5")},
