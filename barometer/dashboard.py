@@ -2,6 +2,7 @@ from __future__ import annotations
 from collections import Counter
 import html
 import json
+import math
 from datetime import datetime, timezone
 from .catalog import (
     PREVIEW_DATA_NOTE, infer_variant, model_catalog_entry, variant_breakdown,
@@ -64,12 +65,6 @@ def _weather_style(status: str, categories: Counter) -> tuple[str, str]:
     return weather
 
 
-CLOUD_FILLER_WORDS = (
-    "the", "and", "it", "this", "that", "was", "is", "seems",
-    "today", "again", "response", "answer", "model", "prompt",
-    "output", "context", "maybe", "usually",
-)
-
 DISPLAY_WINDOWS = (
     ("now", "Now", "24 hours", 24 * HOUR),
     ("7d", "7 days", "7 days", 7 * 24 * HOUR),
@@ -110,30 +105,58 @@ def _window_summary(
     }
 
 
+_CLOUD_POSITIONS = (
+    (50, 47), (27, 68), (74, 66), (44, 82), (63, 25),
+    (16, 43), (84, 43), (31, 27), (70, 84), (50, 12),
+)
+
+
+def _cloud_word_style(category: str, count: int, rank: int) -> str:
+    """Return stable visual variables for a governed aggregate theme."""
+    frequency = min(1.0, math.log2(max(count, 1)) / 4)
+    size = 10 + (18 * frequency)
+    opacity = 0.38 + (0.62 * frequency)
+    left, top = _CLOUD_POSITIONS[rank % len(_CLOUD_POSITIONS)]
+    seed = sum((index + 1) * ord(char) for index, char in enumerate(category))
+    drift_x = 1 + (seed % 2)
+    drift_y = 1 + ((seed // 3) % 2)
+    if seed % 3 == 0:
+        drift_x *= -1
+    if seed % 5 == 0:
+        drift_y *= -1
+    duration = 8 + (seed % 6)
+    delay = -(seed % duration)
+    return (
+        f"--word-x:{left}%;--word-y:{top}%;--word-size:{size:.1f}px;"
+        f"--word-opacity:{opacity:.2f};--drift-x:{drift_x}px;"
+        f"--drift-y:{drift_y}px;--drift-duration:{duration}s;"
+        f"--drift-delay:{delay}s"
+    )
+
+
 def _category_cloud(category_items: list[tuple[str, int]], weather_label: str) -> str:
+    category_items = category_items[:10]
     category_label = ", ".join(
         f"{category} {count}" for category, count in category_items
     ) or "No report themes yet"
-    max_category_count = max((count for _, count in category_items), default=1)
+    if not category_items:
+        return f"""
+      <div class="cloud-heading cloud-heading-empty">
+        <span class="breakdown-label">Report weather · {html.escape(weather_label)}</span>
+        <span class="cloud-key">No reported themes</span>
+      </div>"""
     category_words = "".join(
-        f'<span class="cloud-word" style="--word-size:'
-        f'{12 + round((count / max_category_count) * 9)}px">'
-        f'{html.escape(category)} <b>{count}</b></span>'
-        for category, count in category_items
-    ) or '<span class="cloud-word clear">clear skies</span>'
-    filler_words = "".join(
-        f"<span>{html.escape(word)}</span>"
-        for _ in range(8)
-        for word in CLOUD_FILLER_WORDS
+        f'<span class="cloud-word" style="{_cloud_word_style(category, count, rank)}">'
+        f'<span class="cloud-word-inner">{html.escape(category)}</span></span>'
+        for rank, (category, count) in enumerate(category_items)
     )
     return f"""
       <div class="cloud-heading">
         <span class="breakdown-label">Report weather · {html.escape(weather_label)}</span>
-        <span class="cloud-key">word size = report frequency</span>
+        <span class="cloud-key">size + opacity = report frequency</span>
       </div>
       <div class="category-cloud" role="img"
         aria-label="Reported themes: {html.escape(category_label, quote=True)}">
-        <div class="cloud-filler" aria-hidden="true">{filler_words}</div>
         <div class="cloud-words" aria-hidden="true">{category_words}</div>
       </div>"""
 
@@ -232,10 +255,8 @@ def render_landing(
                 ) or "No source data"
                 category_items = sorted(
                     summary["categories"].items(),
-                    key=lambda item: (
-                        item[0] == "other", -item[1], item[0],
-                    ),
-                )[:4]
+                    key=lambda item: (-item[1], item[0]),
+                )[:10]
                 category_html = _category_cloud(
                     category_items, summary["weather_label"],
                 )
@@ -385,11 +406,10 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 .status i{{width:8px;height:8px;border-radius:50%;background:var(--status-colour);box-shadow:0 0 0 4px color-mix(in srgb,var(--status-colour) 14%,transparent)}}
 .report-line{{display:flex;align-items:baseline;gap:8px;margin:22px 0 8px;flex-wrap:wrap}} .report-line strong{{font-size:38px;line-height:1}} .report-line span{{color:var(--muted);font-size:12px}} .report-line em{{margin-left:auto;color:#99afbb;background:rgba(9,14,20,.46);border:1px solid rgba(126,178,200,.2);border-radius:999px;padding:3px 8px;font-size:9px;font-style:normal}}
 .meta-line{{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:11px;margin:9px 0 12px}}
-.category-weather{{width:100%;margin:16px 0 4px}} .cloud-heading{{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:0}} .cloud-key{{color:#71808d;font-size:8px}}
-.category-cloud{{position:relative;width:100%;aspect-ratio:2.65/1;isolation:isolate;filter:drop-shadow(0 12px 15px rgba(0,0,0,.2));animation:cloud-drift 11s ease-in-out infinite alternate}}
-.cloud-filler{{position:absolute;inset:0;display:flex;align-content:center;justify-content:center;flex-wrap:wrap;gap:1px 4px;padding:3px 8px;overflow:hidden;color:color-mix(in srgb,var(--status-colour) 48%,#c3d1d7);font-size:8.5px;font-weight:560;line-height:1.05;letter-spacing:.01em;opacity:.62;mix-blend-mode:screen;text-shadow:0 1px 7px rgba(0,0,0,.8);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 410 112'%3E%3Cpath fill='white' d='M72%20104C36%20104%2012%2087%2012%2064c0-21%2021-39%2051-42C76%207%2096%200%20120%200c32%200%2059%2017%2070%2043%2014-12%2032-19%2053-19%2036%200%2066%2023%2073%2055%208-5%2019-7%2030-7%2029%200%2052%2014%2052%2032H72Z'/%3E%3C/svg%3E") center/100% 100% no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 410 112'%3E%3Cpath fill='white' d='M72%20104C36%20104%2012%2087%2012%2064c0-21%2021-39%2051-42C76%207%2096%200%20120%200c32%200%2059%2017%2070%2043%2014-12%2032-19%2053-19%2036%200%2066%2023%2073%2055%208-5%2019-7%2030-7%2029%200%2052%2014%2052%2032H72Z'/%3E%3C/svg%3E") center/100% 100% no-repeat}} .cloud-filler span:nth-child(3n){{opacity:.6}} .cloud-filler span:nth-child(5n){{font-size:1.12em}}
-.cloud-words{{position:absolute;inset:0;color:#edf3f5;text-shadow:0 1px 8px rgba(0,0,0,.72)}} .cloud-word{{position:absolute;font-size:var(--word-size,12px);line-height:1;font-weight:700;letter-spacing:-.015em;white-space:nowrap;transform:translate(-50%,-50%)}} .cloud-word b{{font-size:.52em;color:color-mix(in srgb,var(--status-colour) 72%,#fff);vertical-align:super;margin-left:2px}} .cloud-word:nth-child(1){{left:47%;top:40%}} .cloud-word:nth-child(2){{left:27%;top:64%}} .cloud-word:nth-child(3){{left:70%;top:62%}} .cloud-word:nth-child(4){{left:49%;top:78%}} .cloud-word.clear{{left:50%;top:62%;color:#b8c6cc;font-weight:560;font-style:italic}}
-@keyframes cloud-drift{{from{{transform:translate3d(-2px,1px,0)}}to{{transform:translate3d(3px,-1px,0)}}}}
+.category-weather{{width:100%;margin:16px 0 4px}} .cloud-heading{{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:0}} .cloud-heading-empty{{margin-bottom:24px}} .cloud-key{{color:#71808d;font-size:8px;text-align:right}}
+.category-cloud{{position:relative;width:100%;aspect-ratio:2.65/1;isolation:isolate;filter:drop-shadow(0 12px 15px rgba(0,0,0,.2))}}
+.cloud-words{{position:absolute;inset:0;color:color-mix(in srgb,var(--status-colour) 36%,#f4f8f9);text-shadow:0 1px 8px rgba(0,0,0,.78)}} .cloud-word{{position:absolute;left:var(--word-x);top:var(--word-y);line-height:1;font-weight:720;letter-spacing:-.018em;white-space:nowrap;transform:translate(-50%,-50%)}} .cloud-word-inner{{display:block;font-size:var(--word-size);opacity:var(--word-opacity);animation:word-drift var(--drift-duration) ease-in-out var(--drift-delay) infinite alternate;will-change:transform}}
+@keyframes word-drift{{from{{transform:translate3d(calc(var(--drift-x) * -1),calc(var(--drift-y) * -1),0)}}to{{transform:translate3d(var(--drift-x),var(--drift-y),0)}}}}
 @keyframes rain-fall{{from{{transform:translate3d(0,-8%,0)}}to{{transform:translate3d(-5%,16%,0)}}}}
 @keyframes fog-bank{{from{{transform:translate3d(-4%,0,0)}}to{{transform:translate3d(5%,1%,0)}}}}
 @keyframes heat-rise{{from{{transform:translate3d(0,4%,0) scaleX(1)}}to{{transform:translate3d(2%,-4%,0) scaleX(1.04)}}}}
@@ -405,7 +425,7 @@ select{{min-width:170px}} .lab-filters{{display:flex;align-items:center;gap:8px;
 .method-card{{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}}
 .method-card b{{display:block;margin-bottom:5px}} .method-card span{{color:var(--muted);font-size:12px}}
 footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);font-size:12px}}
-@media(prefers-reduced-motion:reduce){{.category-cloud,.weather-motion{{animation:none!important}}}}
+@media(prefers-reduced-motion:reduce){{.cloud-word-inner,.weather-motion{{animation:none!important}}}}
 @media(max-width:1000px){{.model-list{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}
 @media(max-width:680px){{.hero{{grid-template-columns:1fr;padding-top:50px}}.window-row{{flex-wrap:wrap}}.control-row{{grid-template-columns:1fr}}.model-list{{grid-template-columns:1fr}}.model-card{{min-height:410px}}.meta-line,.section-head,.unattributed-head{{align-items:start;flex-direction:column}}.method{{grid-template-columns:1fr}}.method-grid{{grid-template-columns:1fr}}}}
 </style></head><body>
@@ -626,11 +646,6 @@ def render_dashboard(
         f'data-variant="{html.escape(item["key"], quote=True)}">'
         f'{html.escape(item["label"])}</button>'
         for item in variants
-    )
-    filler_words = "".join(
-        f"<span>{html.escape(word)}</span>"
-        for _ in range(8)
-        for word in CLOUD_FILLER_WORDS
     )
     updated = _fmt(generated_at)
     page = f"""<!doctype html>

@@ -76,9 +76,12 @@ Each model card renders a code-native weather scene. Dominant report themes
 choose the visual metaphor (quality as rain, sluggishness as fog, lazy/shortened
 outputs as heat haze, refusals as a storm, and no reports as a clear night),
 while corroborated signals override the theme with a storm. The foreground cloud
-has no filled silhouette: muted, `aria-hidden` filler words form its outline and
-the counted report themes form its bold interior. Motion respects reduced-motion
-preferences, and the artwork never changes the underlying evidence tier.
+is made only from governed aggregate report themes: there are no filler words and
+no public raw phrases. Absolute report frequency controls both size and opacity,
+with the strongest theme held near the dense centre and smaller themes around its
+edge. Every word has a tiny stable drift, while clear cards contain no cloud or
+words at all. Motion respects reduced-motion preferences, and the artwork never
+changes the underlying evidence tier.
 
 ## Pipeline (added overnight)
 - `store.py` — SQLite state: complaint dedup on stable id, readings, events.

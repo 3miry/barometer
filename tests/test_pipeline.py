@@ -17,7 +17,7 @@ from barometer.adapters import (RedditAdapter, HNAdapter, XAdapter,
 from barometer.canary import CanaryRunner, BudgetRefusal, CANARY_TEXT
 from barometer.catalog import infer_variant
 from barometer.cli import tick
-from barometer.dashboard import render_landing
+from barometer.dashboard import _category_cloud, render_landing
 from barometer.detect import Complaint, ProviderEvent
 
 NOW = 1_781_300_000.0
@@ -496,11 +496,16 @@ class TickTests(unittest.TestCase):
             self.assertIn("Preview data", page)
             self.assertIn("Report weather", page)
             self.assertIn('class="category-cloud" role="img"', page)
-            self.assertIn('class="cloud-filler" aria-hidden="true"', page)
+            self.assertNotIn('class="cloud-filler"', page)
+            self.assertNotIn('<span class="cloud-word clear">', page)
+            self.assertIn('class="cloud-word-inner"', page)
+            self.assertIn("--word-opacity:", page)
+            self.assertIn("--word-x:50%;--word-y:47%", page)
             self.assertIn('class="weather-scene" aria-hidden="true"', page)
             self.assertIn("weather-fog", page)
             self.assertIn("weather-rain", page)
-            self.assertIn("word size = report frequency", page)
+            self.assertIn("size + opacity = report frequency", page)
+            self.assertIn("No reported themes", page)
             self.assertIn("prefers-reduced-motion:reduce", page)
             self.assertIn('data-display-window="now"', page)
             self.assertIn('data-display-window="7d"', page)
@@ -508,6 +513,18 @@ class TickTests(unittest.TestCase):
             self.assertIn('[hidden]{display:none!important}', page)
             self.assertNotIn("PRIVATE ONE", page)
             self.assertNotIn("PRIVATE GPT TEXT", page)
+
+    def test_category_cloud_has_no_words_when_there_are_no_reports(self):
+        cloud = _category_cloud([], "clear night")
+        self.assertIn("No reported themes", cloud)
+        self.assertNotIn('class="category-cloud"', cloud)
+        self.assertNotIn('class="cloud-word"', cloud)
+
+    def test_category_cloud_uses_absolute_frequency_for_weight(self):
+        cloud = _category_cloud([("quality", 16), ("sluggish", 1)], "rain front")
+        self.assertIn("--word-size:28.0px;--word-opacity:1.00", cloud)
+        self.assertIn("--word-size:10.0px;--word-opacity:0.38", cloud)
+        self.assertNotIn("quality <b>", cloud)
 
     def test_corrupt_public_history_is_not_silently_overwritten(self):
         with tempfile.TemporaryDirectory() as d:
