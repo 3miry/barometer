@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "fixture_version": "2026-08-24.1",
+  "synthetic": true,
+  "status": "initial-human-review-required",
+  "notes": "Designed evaluation cases, not observed public reports and not production evidence.",
+  "cases": [
+    {
+      "id": "eval_001",
+      "text": "GPT-5.6 is much faster today.",
+      "family": "gpt",
+      "variant": "gpt-5.6",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "day",
+        "observations": [
+          {"concept_id": "beh_0001", "direction": "decrease", "event_state": null, "valence": "positive"}
+        ]
+      },
+      "note": "Positive behaviour change must pass ingress."
+    },
+    {
+      "id": "eval_002",
+      "text": "GPT-5.6 is faster now, but it keeps getting basic dates wrong.",
+      "family": "gpt",
+      "variant": "gpt-5.6",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "broad_period",
+        "observations": [
+          {"concept_id": "beh_0001", "direction": "decrease", "event_state": null, "valence": "positive"},
+          {"concept_id": "beh_0005", "direction": "increase", "event_state": null, "valence": "negative"}
+        ]
+      },
+      "note": "One envelope can contain observations with opposing valence."
+    },
+    {
+      "id": "eval_003",
+      "text": "Opus 5 is a spiky model.",
+      "family": "claude",
+      "variant": "claude-opus-5",
+      "expected": {
+        "eligibility": "novel_candidate",
+        "onset_precision": "unknown",
+        "observations": []
+      },
+      "note": "Valid behaviour assertion with unknown onset; do not force it into refusals or temperament."
+    },
+    {
+      "id": "eval_004",
+      "text": "Opus 5 wrote this article.",
+      "family": "claude",
+      "variant": "claude-opus-5",
+      "expected": {
+        "eligibility": "chatter",
+        "onset_precision": "unknown",
+        "observations": []
+      },
+      "note": "Names a model without asserting model behaviour."
+    },
+    {
+      "id": "eval_005",
+      "text": "Opus 5 is wonderful.",
+      "family": "claude",
+      "variant": "claude-opus-5",
+      "expected": {
+        "eligibility": "uncodable_appraisal",
+        "onset_precision": "unknown",
+        "observations": []
+      },
+      "note": "Positive valence without a codable behaviour."
+    },
+    {
+      "id": "eval_006",
+      "text": "Opus 5 is rubbish.",
+      "family": "claude",
+      "variant": "claude-opus-5",
+      "expected": {
+        "eligibility": "uncodable_appraisal",
+        "onset_precision": "unknown",
+        "observations": []
+      },
+      "note": "Negative valence receives the same treatment as broad praise."
+    },
+    {
+      "id": "eval_007",
+      "text": "Gemini Flash 3.5 keeps cutting answers off halfway.",
+      "family": "gemini",
+      "variant": "gemini-3.5-flash",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {"concept_id": "beh_0002", "direction": "increase", "event_state": null, "valence": "negative"}
+        ]
+      },
+      "note": "Unknown onset does not invalidate a specific behaviour report."
+    },
+    {
+      "id": "eval_008",
+      "text": "GPT-5.5 gives shorter answers, which I prefer.",
+      "family": "gpt",
+      "variant": "gpt-5.5",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {"concept_id": "beh_0003", "direction": "decrease", "event_state": null, "valence": "positive"}
+        ]
+      },
+      "note": "A commonly negative-coded direction can have positive reporter valence."
+    },
+    {
+      "id": "eval_009",
+      "text": "Opus 5 now skips the last two requested steps.",
+      "family": "claude",
+      "variant": "claude-opus-5",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "broad_period",
+        "observations": [
+          {"concept_id": "beh_0004", "direction": "decrease", "event_state": null, "valence": "negative"}
+        ]
+      },
+      "note": "Instruction completion is not truncation or refusal."
+    },
+    {
+      "id": "eval_010",
+      "text": "Claude is refusing harmless formatting requests since yesterday.",
+      "family": "claude",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "day",
+        "observations": [
+          {"concept_id": "beh_0009", "direction": "increase", "event_state": null, "valence": "negative"}
+        ]
+      },
+      "note": "Family-level attribution remains family-level."
+    },
+    {
+      "id": "eval_011",
+      "text": "Great, Sonnet 5 forgot the first message again.",
+      "family": "claude",
+      "variant": "claude-sonnet-5",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {"concept_id": "beh_0011", "direction": "increase", "event_state": null, "valence": "negative"}
+        ]
+      },
+      "note": "Sarcastic positive token must not reverse valence."
+    },
+    {
+      "id": "eval_012",
+      "text": "People keep saying Opus 5 is lazy, but that has not been my experience.",
+      "family": "claude",
+      "variant": "claude-opus-5",
+      "expected": {
+        "eligibility": "chatter",
+        "onset_precision": "unknown",
+        "observations": []
+      },
+      "note": "Quoted third-party appraisal is explicitly denied by the reporter."
+    },
+    {
+      "id": "eval_013",
+      "text": "Is it just me or is Sol really flirty? It is funny, but also slightly uncomfortable.",
+      "family": "gpt",
+      "variant": "gpt-5.6",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {"concept_id": "beh_0014", "direction": "present", "event_state": null, "valence": "mixed"}
+        ]
+      },
+      "note": "Ambivalent reaction remains one behaviour with mixed valence."
+    },
+    {
+      "id": "eval_014",
+      "text": "Grok 4.6 started printing fragments that look like system instructions.",
+      "family": "grok",
+      "variant": "grok-4.6",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "broad_period",
+        "observations": [
+          {"concept_id": "beh_0017", "direction": null, "event_state": "new", "valence": "negative"}
+        ]
+      },
+      "note": "Event-shaped concept must not be forced onto a more-or-less dimension."
+    },
+    {
+      "id": "eval_015",
+      "text": "Gemini suddenly speaks like a completely different persona without being asked.",
+      "family": "gemini",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "broad_period",
+        "observations": [
+          {"concept_id": "beh_0018", "direction": null, "event_state": "new", "valence": "mixed"}
+        ]
+      },
+      "note": "First-class event with family-only attribution."
+    },
+    {
+      "id": "eval_016",
+      "text": "Opus 5 has become unexpectedly good at poetry this week.",
+      "family": "claude",
+      "variant": "claude-opus-5",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "broad_period",
+        "observations": [
+          {"concept_id": "beh_0016", "direction": "increase", "event_state": null, "valence": "positive"}
+        ]
+      },
+      "note": "Unexpected benefit receives the same machinery as a problem report."
+    },
+    {
+      "id": "eval_017",
+      "text": "Grok 4.6 agrees with every contradictory opinion I give it; sometimes useful, sometimes alarming.",
+      "family": "grok",
+      "variant": "grok-4.6",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {"concept_id": "beh_0015", "direction": "present", "event_state": null, "valence": "mixed"}
+        ]
+      },
+      "note": "The concept remains separate from its reporter-dependent value."
+    },
+    {
+      "id": "eval_018",
+      "text": "Gemini feels different somehow.",
+      "family": "gemini",
+      "variant": null,
+      "expected": {
+        "eligibility": "ambiguous",
+        "onset_precision": "unknown",
+        "observations": []
+      },
+      "note": "A claimed change without an observable behaviour should abstain."
+    },
+    {
+      "id": "eval_019",
+      "text": "Opus 5 writes unusually clear explanations.",
+      "family": "claude",
+      "variant": "claude-opus-5",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {"concept_id": "beh_0008", "direction": "present", "event_state": null, "valence": "positive"}
+        ]
+      },
+      "note": "Undated positive characteristic is still a behaviour report."
+    },
+    {
+      "id": "eval_020",
+      "text": "Claude quality has tanked.",
+      "family": "claude",
+      "variant": null,
+      "expected": {
+        "eligibility": "uncodable_appraisal",
+        "onset_precision": "unknown",
+        "observations": []
+      },
+      "note": "Legacy quality wording must not be guessed into factual, reasoning, coding, or writing concepts."
+    },
+    {
+      "id": "eval_021",
+      "text": "Claude is completely broken now.",
+      "family": "claude",
+      "variant": null,
+      "expected": {
+        "eligibility": "uncodable_appraisal",
+        "onset_precision": "broad_period",
+        "observations": []
+      },
+      "note": "Temporal negative appraisal still lacks a codable behaviour."
+    },
+    {
+      "id": "eval_022",
+      "text": "Claude repeats whole paragraphs more often now.",
+      "family": "claude",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "broad_period",
+        "observations": [
+          {"concept_id": "beh_0010", "direction": "increase", "event_state": null, "valence": "negative"}
+        ]
+      },
+      "note": "Specific output-structure report."
+    },
+    {
+      "id": "eval_023",
+      "text": "Fable 5's code compiles but no longer performs the requested action.",
+      "family": "claude",
+      "variant": "claude-fable-5",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "broad_period",
+        "observations": [
+          {"concept_id": "beh_0007", "direction": "increase", "event_state": null, "valence": "negative"}
+        ]
+      },
+      "note": "Coding failure is distinct from broad quality."
+    },
+    {
+      "id": "eval_024",
+      "text": "GPT-5.6 remembered my saved preference again today.",
+      "family": "gpt",
+      "variant": "gpt-5.6",
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "day",
+        "observations": [
+          {"concept_id": "beh_0012", "direction": "increase", "event_state": null, "valence": "positive"}
+        ]
+      },
+      "note": "Positive cross-session memory report; surface support remains a confounder."
+    }
+  ]
+}

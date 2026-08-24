@@ -5,6 +5,10 @@ describe the current keyword classifier as scientifically validated, and its
 presence does not activate new collection, paid APIs, model calls, or scheduled
 processing.
 
+Phase 0 implementation has begun with a validated append-only vocabulary ledger
+and an explicitly synthetic evaluation fixture. Every seeded concept remains
+`provisional` and non-publishable; detector v0 remains unchanged.
+
 Barometer adapts ideas from spontaneous-report pharmacovigilance to public
 reports of model behaviour. It does not claim that model reports are medical
 cases, that the resulting instrument is regulator-validated, or that an
