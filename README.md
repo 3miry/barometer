@@ -16,6 +16,9 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
   terms used by search and filtering.
 - `barometer/submissions.py` — separately stored, moderated user reports;
   only approved structured fields can enter aggregation, never free text.
+- `SIGNAL_DETECTION.md` — the versioned post-MVP architecture for governed
+  behaviour concepts, separate valence, novelty discovery, and PV-inspired
+  signal review. It is a design contract, not an activated detector.
 - `serve_barometer.py` and `manage_reports.py` — local form/API evaluation and
   deliberate queue review. See `USER_REPORTS.md`.
 - `tests/` — torture suite: quiet weather doesn't alarm; cascades can't
