@@ -294,6 +294,14 @@ The production classifier must support abstention. Forced classification is a
 taxonomy-concealment mechanism: it makes the vocabulary appear complete by
 putting uncertainty into the wrong buckets.
 
+`barometer/adjudicator.py` defines the next provider-neutral classifier boundary.
+It classifies one named model target at a time, treats source text as untrusted
+quoted data, validates every returned code against the governed vocabulary, and
+rejects observations attached to an unsupported target. It has no network client
+and is not connected to collection, public aggregation, or automatic approval.
+The deterministic rules remain the cheap high-precision baseline; an eventual
+model transport is reserved for comparison, ambiguity, and novelty adjudication.
+
 Classifier evaluation needs a human-labelled, versioned test set balanced across
 models, sources, positive and negative valence, short and long texts, sarcasm,
 quoted speech, and ambiguous comparison language. Report precision, recall,

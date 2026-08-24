@@ -26,6 +26,8 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
   reported assertions, not production findings.
 - `barometer/classifier.py`, `barometer/shadow.py`, and `shadow_classifier.py`
   — conservative structured classification and read-only shadow evaluation.
+- `barometer/adjudicator.py` — offline, provider-neutral contract for future
+  target-scoped model adjudication; it contains no API client and makes no calls.
   They are disconnected from detector v0 and public output; see
   `SHADOW_CLASSIFIER.md`.
 - `SIGNAL_DETECTION.md` — the versioned post-MVP architecture for governed

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from pathlib import Path
+import re
 import sqlite3
 
 from .review_app import build_review_items
@@ -14,6 +15,52 @@ ANALYSIS_WARNING = (
     "This is a small reviewed development batch, not a held-out accuracy "
     "estimate or a platform-prevalence denominator."
 )
+
+
+# Query-shape diagnostics are deliberately broader than the governed model
+# catalogue. A line name such as "Opus" can be useful for discovery even when
+# the post does not identify a tracked release precisely.
+MODEL_LINE_MENTION = re.compile(
+    r"(?<![a-z0-9])(?:opus|sonnet|fable|sol|luna|terra|"
+    r"flash(?:[-\s]+lite)?)(?![a-z0-9])",
+    re.IGNORECASE,
+)
+PRODUCT_FAMILY_MENTION = re.compile(
+    r"(?<![a-z0-9])(?:claude|chatgpt|gpt|gemini|grok)(?![a-z0-9])",
+    re.IGNORECASE,
+)
+LAB_MENTION = re.compile(
+    r"(?<![a-z0-9])(?:anthropic|openai|xai|google)(?![a-z0-9])",
+    re.IGNORECASE,
+)
+
+
+def _query_targeting_bucket(row: dict) -> str:
+    """Describe the narrowest model-name shape present in one source report."""
+    if row.get("mentioned_variants"):
+        return "exact_variant"
+    text = row.get("text", "")
+    if MODEL_LINE_MENTION.search(text):
+        return "model_line"
+    if PRODUCT_FAMILY_MENTION.search(text):
+        return "product_family"
+    if LAB_MENTION.search(text):
+        return "lab_only"
+    return "other_or_unresolved"
+
+
+def _targeting_summary(counts: Counter) -> dict:
+    total = sum(counts.values())
+    useful = counts["governed_report"] + counts["novel_only"]
+    return {
+        "source_reports": total,
+        "governed_reports": counts["governed_report"],
+        "novel_only": counts["novel_only"],
+        "no_attributable_signal": counts["no_attributable_signal"],
+        "pending": counts["pending"],
+        "useful_reports": useful,
+        "useful_share": _ratio(useful, total),
+    }
 
 
 def _ratio(numerator: int, denominator: int) -> float | None:
@@ -122,6 +169,7 @@ def analyze_review_batch(
 
     source_outcomes = Counter()
     source_yield = defaultdict(Counter)
+    targeting_yield = defaultdict(Counter)
     for report_id, rows in grouped.items():
         fresh = [
             row["decision"] for row in rows
@@ -137,6 +185,7 @@ def analyze_review_batch(
             outcome = "no_attributable_signal"
         source_outcomes[outcome] += 1
         source_yield[rows[0]["source"]][outcome] += 1
+        targeting_yield[_query_targeting_bucket(rows[0])][outcome] += 1
 
     detection = Counter()
     exact_structured = 0
@@ -172,6 +221,11 @@ def analyze_review_batch(
         source_outcomes["governed_report"] + source_outcomes["novel_only"])
     novelty_counts = Counter(
         label for labels in novelty_by_source.values() for label in labels)
+    primary_targeting = (
+        targeting_yield["exact_variant"] + targeting_yield["model_line"])
+    primary_useful = (
+        primary_targeting["governed_report"]
+        + primary_targeting["novel_only"])
     governed_concepts = concepts_by_id()
     return {
         "evaluation_kind": "reviewed_development_batch",
@@ -189,6 +243,24 @@ def analyze_review_batch(
         "source_yield_by_tap": {
             source: dict(sorted(counts.items()))
             for source, counts in sorted(source_yield.items())
+        },
+        "query_targeting_hypothesis": {
+            "warning": (
+                "Observed name shapes in this reviewed development batch; "
+                "this is not an independent query-volume or prevalence estimate."
+            ),
+            "buckets": {
+                bucket: _targeting_summary(targeting_yield[bucket])
+                for bucket in (
+                    "exact_variant", "model_line", "product_family",
+                    "lab_only", "other_or_unresolved")
+            },
+            "exact_variant_or_model_line": {
+                **_targeting_summary(primary_targeting),
+                "captured_useful_reports": primary_useful,
+                "all_useful_reports": reportable,
+                "useful_capture_share": _ratio(primary_useful, reportable),
+            },
         },
         "human_coded_target_slices": coded_slices,
         "human_observations": sum(concepts.values()),

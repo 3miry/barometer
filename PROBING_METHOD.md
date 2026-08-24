@@ -44,6 +44,14 @@ A small per-family floor protects quieter models from being crowded out by the
 most-discussed one. Unused quota can be redistributed only under a versioned
 rule; silent opportunistic redistribution would change the sample over time.
 
+Within that budget, exact release aliases and model-line aliases may receive a
+larger share than broad product names when reviewed yield supports it. Standalone
+lab/company names should not be used merely to increase volume. A small capped
+broad-product stratum remains necessary for coverage and novelty discovery; an
+exact-model-only frame would preferentially sample technical users and silently
+miss reports from people who know only the product name. The allocation is a
+versioned, measured sampling choice rather than an undocumented query tweak.
+
 Discovery supports novelty detection and a sampled estimate of the share of
 available model conversation containing reportable observations. It does not
 represent the whole platform when the source API exposes only a ranked or

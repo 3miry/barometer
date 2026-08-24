@@ -22,7 +22,7 @@ class ReviewAnalysisTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "source.db"
             review = Path(directory) / "review.db"
-            governed_text = "Claude keeps making mistakes SECRET_ANALYSIS_TEXT."
+            governed_text = "Opus 5 keeps making mistakes SECRET_ANALYSIS_TEXT."
             chatter_text = "Claude wrote this article SECRET_CHATTER_TEXT."
             run = CollectionRun(
                 run_id="run-one", source="hn", lane="targeted",
@@ -81,6 +81,16 @@ class ReviewAnalysisTests(unittest.TestCase):
             self.assertTrue(provenance["query_provenance_available"])
             self.assertEqual(provenance["reports_with_query_provenance"], 1)
             self.assertEqual(provenance["reports_without_query_provenance"], 1)
+            targeting = result["query_targeting_hypothesis"]
+            self.assertEqual(
+                targeting["buckets"]["exact_variant"]["useful_reports"], 1)
+            self.assertEqual(
+                targeting["buckets"]["product_family"]["source_reports"], 1)
+            self.assertEqual(
+                targeting["exact_variant_or_model_line"]
+                ["useful_capture_share"],
+                1.0,
+            )
             rendered = json.dumps(result)
             self.assertNotIn("SECRET_ANALYSIS_TEXT", rendered)
             self.assertNotIn("SECRET_CHATTER_TEXT", rendered)
