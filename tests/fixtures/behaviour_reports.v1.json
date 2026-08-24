@@ -985,6 +985,33 @@
         ]
       },
       "note": "An underspecified delivery report can remain at the broad parent."
+    },
+    {
+      "id": "eval_038",
+      "text": "All the Gemini 3 variants perform a bit worse and cost a lot more.",
+      "family": "gemini",
+      "variant": null,
+      "expected": {
+        "eligibility": "behaviour_report",
+        "onset_precision": "unknown",
+        "observations": [
+          {
+            "concept_id": "beh_0038",
+            "specificity": "broad",
+            "state": "low",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "negative",
+            "claim_status": "reported",
+            "suspected_layers": [
+              "model"
+            ],
+            "elicitation_context": "ordinary",
+            "qualifiers": []
+          }
+        ]
+      },
+      "note": "A model-performance claim remains codable at broad resolution; the accompanying cost claim is outside the behaviour ontology."
     }
   ]
 }

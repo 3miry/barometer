@@ -2120,6 +2120,74 @@
       "recorded_at": "2026-08-24T18:00:00Z",
       "broader_id": "beh_0033",
       "narrower_id": "beh_0037"
+    },
+    {
+      "event_id": "vocab_evt_0047",
+      "type": "concept_created",
+      "recorded_at": "2026-08-24T19:19:54Z",
+      "concept": {
+        "id": "beh_0038",
+        "slug": "performance.general_unspecified",
+        "public_label": "general performance",
+        "shape": "dimension",
+        "reporting_layer": "model",
+        "coding_scope": "broad",
+        "parent": "model performance",
+        "definition": "A report asserts that a model performs better or worse overall, but does not provide enough behavioural detail to support a more specific governed concept.",
+        "exclusions": [
+          "Cost, pricing, quota, or value-for-money claims without a model-behaviour assertion",
+          "Pure preference, praise, or dislike without an assertion about performance",
+          "Reports supporting a more specific governed behaviour concept; code that concept instead"
+        ],
+        "allowed_states": [
+          "present",
+          "absent",
+          "high",
+          "low",
+          "mixed",
+          "uncertain"
+        ],
+        "allowed_changes": [
+          "increase",
+          "decrease",
+          "new",
+          "ceased",
+          "stable",
+          "changed",
+          "uncertain"
+        ],
+        "allowed_event_states": [],
+        "candidate_phrases": [
+          "performs worse overall",
+          "generally performs better",
+          "overall performance has declined"
+        ],
+        "examples": [
+          {
+            "text": "The Gemini 3 variants perform a bit worse, but the report does not say how.",
+            "state": "low",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "negative"
+          },
+          {
+            "text": "GPT-5.6 generally performs better for me, though I cannot narrow down why.",
+            "state": "high",
+            "change": "uncertain",
+            "event_state": null,
+            "valence": "positive"
+          }
+        ],
+        "counterexamples": [
+          "Gemini costs more than the model I used before.",
+          "I dislike Claude.",
+          "GPT-5.6 keeps making factual errors."
+        ],
+        "status": "provisional",
+        "publishable": false,
+        "definition_version": 1,
+        "origin": "Human-review finding: preserve valid but underspecified performance reports without reviving a valence-loaded quality or other bucket."
+      }
     }
   ]
 }

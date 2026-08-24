@@ -20,8 +20,8 @@ class StructuredClassifierTests(unittest.TestCase):
     def test_human_reviewed_development_contract_matches(self):
         result = evaluate_fixture(DEFAULT_FIXTURE)
         self.assertEqual(result["evaluation_kind"], "development_contract")
-        self.assertEqual(result["cases"], 37)
-        self.assertEqual(result["full_matches"], 37)
+        self.assertEqual(result["cases"], 38)
+        self.assertEqual(result["full_matches"], 38)
         self.assertEqual(result["mismatches"], [])
         self.assertIn("not real-world classifier accuracy", result["warning"])
 
@@ -36,6 +36,22 @@ class StructuredClassifierTests(unittest.TestCase):
         self.assertEqual(len(result.observations), 1)
         self.assertEqual(result.observations[0].concept_id, "beh_0019")
         self.assertEqual(result.observations[0].specificity, "broad")
+
+    def test_general_performance_preserves_vague_signal_but_not_cost(self):
+        result = classify_report(
+            "All the Gemini 3 variants perform a bit worse and cost a lot more."
+        )
+        self.assertEqual(result.eligibility, "behaviour_report")
+        self.assertEqual(len(result.observations), 1)
+        observation = result.observations[0]
+        self.assertEqual(observation.concept_id, "beh_0038")
+        self.assertEqual(observation.specificity, "broad")
+        self.assertEqual(observation.state, "low")
+        self.assertEqual(observation.change, "uncertain")
+        self.assertEqual(observation.valence, "negative")
+
+        cost_only = classify_report("Gemini costs a lot more now.")
+        self.assertEqual(cost_only.observations, ())
 
     def test_novelty_can_coexist_with_known_codes(self):
         result = classify_report(

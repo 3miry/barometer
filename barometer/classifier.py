@@ -114,6 +114,10 @@ RULES = (
     _rule("beh_0008", r"\b(?:unusually |much )?clear explanations?\b|\bclearer writing\b", state="present", valence="positive"),
     _rule("beh_0008", r"\b(?:harder to follow|unclear writing|sloppy sentences?)\b", state="low", change="decrease", valence="negative"),
     _rule("beh_0019", r"\b(?:keeps? )?(?:making|makes?) mistakes?\b|\bgetting things wrong\b|\bmore errors lately\b", state="present", valence="negative"),
+    _rule("beh_0038", r"\b(?:generally\s+)?perform(?:s|ed|ing)?\s+(?:a\s+(?:bit|lot)\s+|slightly\s+|somewhat\s+|much\s+|far\s+)?worse\b", state="low", change="uncertain", valence="negative"),
+    _rule("beh_0038", r"\b(?:generally\s+)?perform(?:s|ed|ing)?\s+(?:a\s+(?:bit|lot)\s+|slightly\s+|somewhat\s+|much\s+|far\s+)?better\b", state="high", change="uncertain", valence="positive"),
+    _rule("beh_0038", r"\b(?:overall|general) performance\b[^.]{0,40}\b(?:declined|degraded|got worse)\b", state="low", change="decrease", valence="negative"),
+    _rule("beh_0038", r"\b(?:overall|general) performance\b[^.]{0,40}\b(?:improved|got better)\b", state="high", change="increase", valence="positive"),
 
     # Refusal, repetition, context, and memory.
     _rule("beh_0009", r"\b(?:refusing|refuses|refused)\b[^.]{0,100}\b(?:requests?|answer|formatting)?\b|\b(?:would not|won't) answer\b", change="increase", valence="negative"),
