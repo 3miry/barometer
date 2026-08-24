@@ -61,11 +61,16 @@ structured behaviour observations from that envelope.
 | Field | Meaning |
 | --- | --- |
 | `report_id` | Internal stable identifier; never public |
-| `observed_at` | Best available observation/report time with precision flag |
+| `received_at` | Source publication or Barometer receipt time; the report's day zero |
+| `claimed_onset_at` | Optional claimed behaviour-onset time; null when unknown |
+| `onset_precision` | Exact, day, broad period, or unknown |
 | `source_type` | HN, X, user, or another approved source class |
 | `family` | Claude, GPT, Grok, Gemini, etc. |
 | `variant` | Exact model only when explicitly attributable |
 | `surface` | Web, mobile, desktop, API, unknown |
+| `collection_lane` | Discovery sample, targeted probe, or user report |
+| `query_version` | Versioned collection/probe definition, where applicable |
+| `inclusion_probability` | Sampling probability where it is known |
 | `text_private` | Retained only inside the existing private raw-data boundary |
 | `synthetic` | Mandatory provenance flag |
 | `cascade_id` | Deduplication cluster assigned before signal counting |
@@ -75,7 +80,8 @@ structured behaviour observations from that envelope.
 | Field | Meaning |
 | --- | --- |
 | `behaviour_id` | Stable identifier from the governed vocabulary |
-| `direction` | `increase`, `decrease`, `changed`, `new`, or `uncertain` |
+| `direction` | For dimensions: `increase`, `decrease`, `present`, `changed`, or `uncertain` |
+| `event_state` | For events: `occurred`, `new`, `ceased`, `recurred`, or `uncertain` |
 | `valence` | `positive`, `negative`, `mixed`, `neutral`, or `unstated` |
 | `evidence_kind` | `assertion`, `example`, `reproduction`, `artifact`, or `quantitative` |
 | `classification_source` | `reporter`, `rule`, `model`, or `human` |
@@ -91,6 +97,12 @@ valence. The two observations remain linked to one report envelope.
 Valence records the reporter's appraisal, not an intrinsic moral property of a
 behaviour. "More flirtatious" can therefore be positive, negative, mixed, or
 unstated without changing its behaviour identifier.
+
+A report does not need an event-onset date or an explicit "this changed today"
+claim to be eligible. "Opus 5 is spiky" is a behaviour report received today
+with onset unknown and direction `present`. `received_at` anchors reporting-time
+analysis; it must never be relabelled as the behaviour's onset. Missing onset
+reduces temporal-causality information but does not erase the report.
 
 Evidence kinds are descriptive rather than a permanent numeric hierarchy.
 Weighting, if used, must be versioned and empirically tested; an attached image
@@ -114,6 +126,17 @@ Meanings are never changed in place. A concept can be superseded by one or more
 new concepts, but historical observations retain the ID and version under which
 they were classified. Public labels can be corrected only when the definition is
 unchanged and the change is recorded.
+
+The ledger supports two concept shapes:
+
+- **dimensions** describe behaviour that can vary, such as latency, warmth, or
+  response length;
+- **events** describe occurrences, such as leaking system-style text, adopting
+  an unexpected persona, or producing a new class of malformed output.
+
+Event concepts are first-class entries rather than awkwardly forced onto a
+more/less scale. Their event state can be occurred, new, ceased, recurred, or
+uncertain; their `direction` remains null.
 
 `unclassified` is a classification state, not a behaviour concept. It must never
 appear in the public cloud as though it describes model behaviour.
@@ -166,11 +189,17 @@ Classification cannot become valence-balanced while ingestion remains
 complaint-only. The current adapters call `looks_like_complaint()` and admit
 negative hints such as "worse", "dumb", "lazy", and "broken" before the taxonomy
 ever sees a report. Phase 1 therefore needs a valence-neutral candidate selector
-for reported *change*: comparative language, temporal shifts, unexpectedly
-present or absent behaviour, and explicit requests for corroboration. Source
-queries and acceptance fixtures must include positive, mixed, and neutral change
-language. Broad praise with no claimed change is ordinary discourse, not a model
-weather report.
+for attributable model-behaviour observations, whether or not the post supplies
+an onset date or explicitly claims a recent change. Comparative language,
+temporal shifts, unexpectedly present or absent behaviour, and requests for
+corroboration are useful signals of relevance, but they are not minimum validity
+criteria.
+
+Behaviour-free praise and behaviour-free abuse are symmetrically outside the
+weather stream. "Opus 5 is wonderful" and "Opus 5 is rubbish" contain valence
+but no codable behaviour; "Opus 5 writes unusually clear prose" and "Opus 5 is
+spiky" contain behaviour assertions even when onset is unknown. "Opus 5 wrote
+this article" is ordinary chatter.
 
 The internal name `Complaint` can remain temporarily for compatibility, but new
 types and public methodology should use `ReportEnvelope` or `BehaviourReport`.
@@ -199,13 +228,67 @@ quoted speech, and ambiguous comparison language. Report precision, recall,
 abstention rate, and confusion by concept; one headline accuracy number is not
 enough.
 
+### Two collection lanes
+
+Barometer uses discovery and surveillance as separate but connected lanes.
+
+#### Discovery sample
+
+Take a cost-capped, preferably stratified sample of model-related posts from each
+approved source every day. Classify every sampled item as one of:
+
+1. ordinary chatter with no model-behaviour observation;
+2. a report mapped to an existing governed concept;
+3. a report containing a candidate unknown concept;
+4. ambiguous or insufficient for a decision.
+
+Known concepts contribute observations with `received_at` set to the post/receipt
+date and `claimed_onset_at` left null when the text gives no onset. Unknown
+concepts enter the private novelty lane. One unfamiliar phrase can create a
+candidate, but not a public bucket: promotion requires clustering or repeated
+evidence, human definition and naming, and vocabulary-ledger entry.
+
+#### Targeted probes
+
+Run more frequent cost-capped searches from a versioned probe registry. Each
+probe maps tested query terms to one or more governed concepts. Terms discovered
+through sampling can be proposed for the registry only after review; a word such
+as "spiky" must not be attached to refusals or temperament merely because the
+first reviewer can imagine that meaning.
+
+Targeted probes are efficient surveillance, but their raw counts do not estimate
+general prevalence. Keep query version, sampling cap, inclusion probability where
+known, and overlap provenance. Deduplicate the same source report across lanes
+before counting it. A stable probe can support within-probe temporal comparisons;
+combining discovery and targeted counts requires appropriate sampling treatment.
+
+The feedback loop is:
+
+`discovery sample → private candidate cluster → human promotion → probe registry → targeted surveillance`
+
+### Ingress validation and collection health
+
+Periodically hand-label random samples from the available source/query frame and
+compare them with selector decisions. Monitor precision, sensitivity, abstention,
+and admitted-versus-available valence distribution. Report these as collection
+health alongside tap failures and saturation.
+
+This audit describes only the material the source and our queries made available.
+It cannot prove balance across posts an API never returned. Dashboard and methods
+language must call it a coverage audit, not an unbiased sample of the platform.
+
+X budgets are part of the method. Give discovery and targeted lanes explicit
+daily allocations; fully collect narrow high-precision streams where affordable,
+sample broad streams, and version the strata, caps, and weights. Ethical balance
+that cannot survive its invoice is not an operational design.
+
 ## User-report intake
 
 The current moderation and privacy boundary remains. The form should eventually
 replace "problem category" with three separate structured questions:
 
-1. What behaviour changed? — governed behaviour dimension or "none of these".
-2. In which direction? — more, less, newly present, changed, or unsure.
+1. What did you observe? — governed behaviour/event or "none of these".
+2. Was it more, less, newly present, simply present, changed, or unsure?
 3. How was that for you? — positive, negative, mixed, neutral, or prefer not to say.
 
 Optional evidence questions can record whether the reporter has an example,
@@ -256,6 +339,10 @@ Raw phrases age out with the raw-report retention policy. If a cluster cannot be
 reviewed before its evidence expires, the system may retain non-identifying
 aggregate diagnostics and a centroid only if the privacy policy explicitly
 allows it; it must not retain disguised quotations indefinitely.
+
+Concept promotion adds reviewed probe candidates but does not automatically
+activate or spend against them. Query precision, ambiguity, expected volume, and
+cost are tested before a probe version becomes active.
 
 ## Statistical signal engine
 
@@ -314,6 +401,25 @@ covering:
 A statistical signal is a review priority. It is not automatically public
 weather and never automatically becomes a causal claim.
 
+### Replay without pretending history is ground truth
+
+Confirmed historical model-behaviour signals are too few and inconsistently
+documented to calibrate the engine alone. Replay evaluation therefore injects
+clearly flagged synthetic patterns into copies of real historical streams:
+
+- isolated low-count reports;
+- slow accumulation and sudden bursts;
+- one cascade repeated across sources;
+- genuinely independent cross-source reports;
+- fleet-wide discourse waves;
+- model-specific positive, negative, and mixed behaviours;
+- event-shaped novelty clusters.
+
+Vary size, duration, source diversity, query lane, and cascade structure, then
+measure detection delay, sensitivity, false alarms, and ranking stability. The
+synthetic provenance flag is mandatory and injected observations can never enter
+production storage, baselines, public counts, or weather.
+
 ## Signal lifecycle and causality evidence
 
 Use an auditable lifecycle:
@@ -348,6 +454,9 @@ phrases, rejected concepts, cluster labels awaiting review, or `unclassified`.
 - no reports in the selected window means no cloud and no words;
 - a lack of unusual signal may be called clear weather even when ordinary reports
   exist, provided the UI distinguishes "no signal" from "no reports".
+- every public view labels its attribution level as family-wide or exact-model;
+  sparse variant weather must not look like a claim about the whole family, or
+  vice versa.
 
 Positive states can include warm front, clear spell, or sunny intervals. Negative
 and mixed states can include rain, storm, fog, overcast, or changeable conditions.
@@ -377,15 +486,21 @@ not a conclusion embedded permanently in the cloud renderer.
 
 - Approve this architecture and the initial vocabulary governance rules.
 - Build a small human-labelled evaluation fixture containing positive, negative,
-  mixed, ambiguous, and novel observations.
+  mixed, ambiguous, undated-onset, chatter, and novel observations.
+- Define the discovery sampling frame, targeted probe registry, coverage-audit
+  sample, and per-lane X budget.
+- Design synthetic-injection replay scenarios and metrics.
 - Mark all retained synthetic/legacy data explicitly.
 
 ### Phase 1 — ethical structured core
 
 - Add the versioned vocabulary ledger.
 - Add structured behaviour, direction, valence, evidence, and provenance types.
-- Replace complaint-only source admission with valence-neutral change-report
-  candidate selection and balanced fixtures.
+- Support both dimension and event concepts.
+- Replace complaint-only source admission with valence-neutral behaviour-report
+  selection and balanced fixtures.
+- Add separate discovery-sample and targeted-probe provenance with deduplication.
+- Add coverage-audit collection-health metrics.
 - Introduce abstaining classification behind a feature flag.
 - Update user intake and moderation without weakening the private boundary.
 - Add unclassified-share metrics and positive/mixed weather states.
@@ -396,6 +511,7 @@ not a conclusion embedded permanently in the cloud renderer.
 - Add private phrase extraction and local embedding evaluation.
 - Add nightly clustering, growth/model-specificity diagnostics, and naming queue.
 - Add append-only promotion, rejection, split, and supersession records.
+- Add reviewed, cost-tested probe proposals from promoted concepts.
 
 ### Phase 3 — disproportionality
 
@@ -419,12 +535,16 @@ processing, and scheduling remain separate operational decisions.
    precise behaviours.
 2. Positive and mixed source fixtures pass candidate selection and classify
    without being forced into a complaint bucket.
-3. Behaviour and valence can disagree without data loss.
-4. Uncertain reports abstain and increase the unclassified-share metric.
-5. Existing raw user descriptions still cannot cross the moderation boundary.
-6. Synthetic/legacy observations cannot enter the new baseline.
-7. Public output contains governed IDs/labels and aggregates, never raw phrases.
-8. The current detector remains available for side-by-side replay until the new
+3. A behaviour report with unknown onset remains eligible and retains distinct
+   receipt and onset fields.
+4. Behaviour and valence can disagree without data loss.
+5. Dimension and event concepts both survive round-trip storage.
+6. Uncertain reports abstain and increase the unclassified-share metric.
+7. Discovery and targeted duplicates count once and retain query provenance.
+8. Existing raw user descriptions still cannot cross the moderation boundary.
+9. Synthetic/legacy observations cannot enter the new baseline.
+10. Public output contains governed IDs/labels and aggregates, never raw phrases.
+11. The current detector remains available for side-by-side replay until the new
    pipeline is validated.
 
 ## Methodological references
