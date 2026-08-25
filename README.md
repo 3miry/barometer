@@ -47,6 +47,10 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
   structured reviewer decisions are kept in a separate ignored database.
   Comparative reports become linked per-model slices so opposing directions or
   valences are coded independently without multiplying source provenance.
+- `barometer/reviewed_observations.py` — read-only promotion bridge from
+  completed human decisions into aggregate weather. The default path admits
+  only active, publishable concepts and carries no source text, URL, handle,
+  note, or identifier across the public boundary.
 - `barometer/sampling_controls.py` — private reversible source suppression.
   X author IDs and handle snapshots remain private; review actions affect only
   future sampling, retain an audit record, and never delete the reviewed post.
@@ -119,6 +123,25 @@ python analyze_reviews.py
 
 The output is explicitly a development-batch diagnostic, not held-out accuracy
 or a platform-prevalence estimate.
+
+Render a separate local preview from completed reviews without changing either
+private database or the normal public output directory:
+
+```powershell
+python run_barometer.py `
+  --db observation/private/barometer.db `
+  --out-dir observation/preview_reviewed `
+  --public-snapshot observation/preview_reviewed/summary.json `
+  --reviewed-source-db observation/private/source_batch.db `
+  --classifier-review-db observation/private/classifier_reviews.db `
+  --include-provisional-review-concepts
+```
+
+The provisional flag requires an explicit output directory and refuses
+`observation/public`. It changes neither vocabulary status nor review state and
+adds a visible provisional-vocabulary caveat to the preview. Omit that flag for
+the production-safe bridge; currently that will withhold every still-provisional
+concept until governance activates it as publishable.
 
 ## Data and credentials
 - The repository contains no API credentials. Live transports read credentials

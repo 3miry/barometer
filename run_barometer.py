@@ -6,8 +6,10 @@ import time
 
 from barometer.adapters import HNAdapter, RedditAdapter, XAdapter
 from barometer.canary import CanaryRunner
+from barometer.catalog import PREVIEW_DATA_NOTE
 from barometer.cli import tick
 from barometer.public import write_run_status
+from barometer.reviewed_observations import load_reviewed_observations
 from barometer.sampling_controls import SamplingControlStore
 from barometer.store import Store
 from barometer.submissions import SubmissionStore
@@ -92,6 +94,20 @@ def parse_args(argv=None):
         "--sampling-controls-db",
         help="private reversible source-suppression ledger",
     )
+    parser.add_argument(
+        "--reviewed-source-db",
+        help="private retained-report database used for human review",
+    )
+    parser.add_argument(
+        "--classifier-review-db",
+        help="private completed classifier-review database",
+    )
+    parser.add_argument(
+        "--include-provisional-review-concepts",
+        action="store_true",
+        help=("local preview only: include provisional governed concepts "
+              "without activating or publishing them"),
+    )
     parser.add_argument("--retention-days", type=int,
                         help="delete private raw reports older than this")
     args = parser.parse_args(argv)
@@ -117,6 +133,21 @@ def parse_args(argv=None):
             parser.error(
                 "--reddit requires these process environment variables: "
                 + ", ".join(missing))
+    if bool(args.reviewed_source_db) != bool(args.classifier_review_db):
+        parser.error(
+            "--reviewed-source-db and --classifier-review-db must be supplied together")
+    if (args.include_provisional_review_concepts
+            and not args.reviewed_source_db):
+        parser.error(
+            "--include-provisional-review-concepts requires both review databases")
+    if args.include_provisional_review_concepts:
+        if args.out_dir is None:
+            parser.error(
+                "provisional review preview requires an explicit --out-dir")
+        public_dir = Path("observation/public").resolve()
+        if Path(args.out_dir).resolve() == public_dir:
+            parser.error(
+                "provisional review concepts cannot render into observation/public")
     return args
 
 
@@ -193,6 +224,25 @@ def main(argv=None) -> None:
                     approved_user_reports = submission_store.approved_complaints(
                         since=time.time() - window_days * 86400,
                     )
+            reviewed_reports = []
+            promotion = None
+            data_quality_note = None
+            if args.reviewed_source_db is not None:
+                promotion = load_reviewed_observations(
+                    args.reviewed_source_db,
+                    args.classifier_review_db,
+                    since=started_at - window_days * 86400,
+                    include_provisional=(
+                        args.include_provisional_review_concepts),
+                )
+                reviewed_reports = list(promotion.complaints)
+                if args.include_provisional_review_concepts:
+                    data_quality_note = (
+                        PREVIEW_DATA_NOTE + " This preview also includes "
+                        "human-reviewed observations coded against a provisional "
+                        "vocabulary; those terms are not activated for public "
+                        "publication."
+                    )
             report = tick(
                 store,
                 adapters,
@@ -203,7 +253,11 @@ def main(argv=None) -> None:
                 public_snapshot=public_snapshot,
                 public_history=public_history,
                 approved_user_reports=approved_user_reports,
+                reviewed_reports=reviewed_reports,
+                data_quality_note=data_quality_note,
             )
+            if promotion is not None:
+                report["reviewed_promotion"] = promotion.public_report()
     except Exception as exc:
         if status_file is not None:
             write_run_status(

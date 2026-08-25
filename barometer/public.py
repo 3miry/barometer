@@ -9,7 +9,10 @@ from pathlib import Path
 import tempfile
 
 from .catalog import PREVIEW_DATA_NOTE, model_catalog_entry, variant_breakdown
-from .detect import Assessment, Complaint, cascade_clusters, classify
+from .detect import (
+    Assessment, Complaint, cascade_clusters, complaint_themes,
+    complaint_valences,
+)
 
 PUBLIC_WINDOWS = {"now": 86400, "7d": 7 * 86400, "21d": 21 * 86400}
 
@@ -25,7 +28,17 @@ def _model_summary(
     categories = Counter(
         category
         for complaint in complaints
-        for category in classify(complaint.text)
+        for category in complaint_themes(complaint)
+    )
+    valences = Counter(
+        valence
+        for complaint in complaints
+        for valence in complaint_valences(complaint)
+    )
+    changes = Counter(
+        change
+        for complaint in complaints
+        for change in complaint.governed_changes
     )
     sources = Counter(complaint.source for complaint in complaints)
     highest_tier = max((assessment.tier for assessment in assessments), default=0)
@@ -40,6 +53,8 @@ def _model_summary(
         if complaints else None,
         "sources": dict(sorted(sources.items())),
         "categories": dict(sorted(categories.items())),
+        "valences": dict(sorted(valences.items())),
+        "changes": dict(sorted(changes.items())),
         "highest_claim_tier": highest_tier,
         "bursts": [
             {
@@ -107,7 +122,8 @@ def write_public_snapshot(
         generated_at: float,
         window_days: int,
         history_path: str | None = None,
-        history_days: int = 366) -> None:
+        history_days: int = 366,
+        data_quality_note: str = PREVIEW_DATA_NOTE) -> None:
     """Write aggregate statistics atomically; never serialize posts or URLs."""
     payload = {
         "schema_version": 1,
@@ -115,7 +131,7 @@ def write_public_snapshot(
         "window_days": window_days,
         "default_display_window": "now",
         "display_windows_seconds": PUBLIC_WINDOWS,
-        "data_quality_note": PREVIEW_DATA_NOTE,
+        "data_quality_note": data_quality_note,
         "models": {
             model: _model_summary_with_windows(
                 model, complaints, assessments, generated_at,

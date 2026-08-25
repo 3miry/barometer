@@ -16,6 +16,12 @@ class Complaint:
     variant: str | None = None    # exact model only when the report says it
     author_id: str | None = None  # private stable source account identifier
     author_handle: str | None = None  # private display snapshot, never public
+    # Ephemeral, aggregate-only annotations. These are deliberately absent from
+    # the raw complaint store and are used by reviewed/user-report bridges.
+    governed_themes: tuple[str, ...] = ()
+    governed_valences: tuple[str, ...] = ()
+    governed_changes: tuple[str, ...] = ()
+    dedup_key: str | None = None  # private correlation key; never serialized
 
 @dataclass
 class CanaryReading:
@@ -65,6 +71,18 @@ def classify(text: str) -> list[str]:
     t = text.lower()
     return [k for k, kws in TAXONOMY.items() if any(w in t for w in kws)] or ["other"]
 
+
+def complaint_themes(complaint: Complaint) -> list[str]:
+    """Prefer human-governed themes; retain the legacy classifier as fallback."""
+    if complaint.governed_themes:
+        return list(complaint.governed_themes)
+    return classify(complaint.text)
+
+
+def complaint_valences(complaint: Complaint) -> list[str]:
+    """Return reviewed valence annotations, if this report has any."""
+    return list(complaint.governed_valences)
+
 # ---------------- cascade dedup ----------------
 def _shingles(text: str, k: int = 4) -> set:
     toks = text.lower().split()
@@ -78,17 +96,28 @@ def _jaccard(a: set, b: set) -> float:
 def cascade_clusters(complaints: list[Complaint], sim: float = 0.55) -> list[list[Complaint]]:
     """Group near-duplicate or same-seed complaints: one viral post quoted
     across four platforms is ONE datum, not four."""
-    clusters: list[list] = []   # [shingle_set, seed_url, members]
+    clusters: list[list] = []   # [shingle_set, seed_url, private_key, members]
     for c in complaints:
         sh = _shingles(c.text)
         placed = False
         for entry in clusters:
-            csh, seed, members = entry
-            if (c.seed_url and seed and c.seed_url == seed) or _jaccard(sh, csh) >= sim:
+            csh, seed, private_key, members = entry
+            if c.dedup_key is not None or private_key is not None:
+                matches = (
+                    c.dedup_key is not None
+                    and private_key is not None
+                    and c.dedup_key == private_key
+                )
+            else:
+                matches = (
+                    (c.seed_url and seed and c.seed_url == seed)
+                    or _jaccard(sh, csh) >= sim
+                )
+            if matches:
                 members.append(c); entry[0] = csh | sh; placed = True; break
         if not placed:
-            clusters.append([sh, c.seed_url, [c]])
-    return [m for _, _, m in clusters]
+            clusters.append([sh, c.seed_url, c.dedup_key, [c]])
+    return [m for _, _, _, m in clusters]
 
 def independence_score(complaints: list[Complaint]) -> dict:
     """Distinct sources contributing at least one INDEPENDENT

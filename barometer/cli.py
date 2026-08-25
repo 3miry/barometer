@@ -6,7 +6,7 @@ from pathlib import Path
 import time
 from .store import Store
 from .canary import CanaryRunner
-from .catalog import MODEL_CATALOG
+from .catalog import MODEL_CATALOG, PREVIEW_DATA_NOTE
 from .detect import Complaint, detect_bursts, classify_tier
 from .dashboard import render_dashboard, render_landing
 from .public import write_public_snapshot
@@ -17,16 +17,22 @@ def tick(store: Store, adapters: list, runner: CanaryRunner | None = None,
          now: float | None = None, retention_days: int | None = None,
          public_snapshot: str | None = None,
          public_history: str | None = None,
-         approved_user_reports: list[Complaint] | None = None) -> dict:
+         approved_user_reports: list[Complaint] | None = None,
+         reviewed_reports: list[Complaint] | None = None,
+         data_quality_note: str | None = None) -> dict:
     """One pass: ingest -> canaries (if due) -> detect -> tier -> render.
     Returns a small report dict; side effects are the store and the HTML."""
     now = now or time.time()
     since = now - window_days * 86400
+    render_note = data_quality_note or PREVIEW_DATA_NOTE
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     report: dict = {"new_complaints": 0, "readings": 0, "assessments": {}}
     ephemeral_complaints = list(approved_user_reports or [])
-    if ephemeral_complaints:
-        report["approved_user_reports"] = len(ephemeral_complaints)
+    if approved_user_reports:
+        report["approved_user_reports"] = len(approved_user_reports)
+    if reviewed_reports:
+        ephemeral_complaints.extend(reviewed_reports)
+        report["reviewed_reports"] = len(reviewed_reports)
 
     for adapter in adapters:
         try:
@@ -79,6 +85,7 @@ def tick(store: Store, adapters: list, runner: CanaryRunner | None = None,
         render_dashboard(
             model, cs, assessments, f"{out_dir}/barometer_{model}.html",
             generated_at=now, window_days=window_days,
+            data_quality_note=render_note,
         )
         report["assessments"][model] = [a.summary for a in assessments]
         public_models[model] = (cs, assessments)
@@ -88,6 +95,7 @@ def tick(store: Store, adapters: list, runner: CanaryRunner | None = None,
         f"{out_dir}/index.html",
         generated_at=now,
         window_days=window_days,
+        data_quality_note=render_note,
     )
     render_report_form(public_models, f"{out_dir}/report.html")
 
@@ -98,6 +106,7 @@ def tick(store: Store, adapters: list, runner: CanaryRunner | None = None,
             now,
             window_days,
             history_path=public_history,
+            data_quality_note=render_note,
         )
 
     if retention_days is not None:

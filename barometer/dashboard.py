@@ -7,7 +7,10 @@ from datetime import datetime, timezone
 from .catalog import (
     PREVIEW_DATA_NOTE, infer_variant, model_catalog_entry, variant_breakdown,
 )
-from .detect import Assessment, Complaint, cascade_clusters, classify, HOUR
+from .detect import (
+    Assessment, Complaint, cascade_clusters, complaint_themes,
+    complaint_valences, HOUR,
+)
 
 TIER_STYLE = {
     0: ("#8a8f98", "CALM / CASCADE"),
@@ -43,12 +46,16 @@ def _activity_status(assessments: list[Assessment]) -> tuple[str, str, str]:
     return "quiet", "No burst detected", "#7aa78d"
 
 
-def _weather_style(status: str, categories: Counter) -> tuple[str, str]:
+def _weather_style(
+        status: str, categories: Counter,
+        valences: Counter | None = None) -> tuple[str, str]:
     """Choose illustrative weather without changing the underlying signal tier."""
     if status in {"corroborated", "attributed"}:
         return "storm", "electrical storm"
     if not categories:
         return "clear", "clear night"
+    if valences and valences["positive"] > valences["negative"]:
+        return "clear", "clear spell"
     dominant = max(
         categories.items(), key=lambda item: (item[0] != "other", item[1])
     )[0]
@@ -58,6 +65,20 @@ def _weather_style(status: str, categories: Counter) -> tuple[str, str]:
         "length": ("heat", "heat haze"),
         "refusals": ("storm", "electrical storm"),
         "quality": ("rain", "rain front"),
+        "latency": ("fog", "fog bank"),
+        "response completion": ("heat", "heat haze"),
+        "token efficiency": ("heat", "heat haze"),
+        "refusal behaviour": ("storm", "electrical storm"),
+        "moderation/filter intervention": ("storm", "electrical storm"),
+        "routing/model mismatch": ("storm", "electrical storm"),
+        "platform reliability": ("storm", "electrical storm"),
+        "tool use reliability": ("storm", "electrical storm"),
+        "general performance": ("rain", "rain front"),
+        "factual recall accuracy": ("rain", "rain front"),
+        "reasoning reliability": ("rain", "rain front"),
+        "code functionality": ("rain", "rain front"),
+        "general correctness": ("rain", "rain front"),
+        "writing clarity": ("rain", "rain front"),
         "other": ("overcast", "overcast"),
     }.get(dominant, ("overcast", "overcast"))
     if status == "attention" and weather[0] == "overcast":
@@ -85,16 +106,23 @@ def _window_summary(
     categories = Counter(
         category
         for complaint in current
-        for category in classify(complaint.text)
+        for category in complaint_themes(complaint)
+    )
+    valences = Counter(
+        valence
+        for complaint in current
+        for valence in complaint_valences(complaint)
     )
     sources = Counter(c.source.split("/", 1)[0] for c in current)
-    weather_key, weather_label = _weather_style(status_key, categories)
+    weather_key, weather_label = _weather_style(
+        status_key, categories, valences)
     return {
         "complaints": current,
         "reports": len(current),
         "independent": len(cascade_clusters(current)),
         "latest": max((complaint.ts for complaint in current), default=0),
         "categories": categories,
+        "valences": valences,
         "sources": sources,
         "breakdown": variant_breakdown(model, current),
         "status_key": status_key,
@@ -228,7 +256,8 @@ def _hero_weather_system() -> str:
     </div>"""
 def render_landing(
         models: dict[str, tuple[list[Complaint], list[Assessment]]],
-        out_path: str, generated_at: float, window_days: int) -> None:
+        out_path: str, generated_at: float, window_days: int,
+        data_quality_note: str = PREVIEW_DATA_NOTE) -> None:
     """Render the public, aggregate-only entry point across exact models."""
     all_complaints = [
         complaint
@@ -306,7 +335,8 @@ def render_landing(
                     generated_at, seconds,
                 )
                 summary["weather_key"], summary["weather_label"] = (
-                    _weather_style("quiet", summary["categories"])
+                    _weather_style(
+                        "quiet", summary["categories"], summary["valences"])
                 )
                 windows[key] = summary
             baseline_daily = windows["21d"]["reports"] / 21
@@ -527,7 +557,7 @@ footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);
     </div>
     <aside class="weather-box"><span>Current fleet reading</span><strong id="fleet-reading" {fleet_reading_attrs}>{html.escape(fleet_readings['now'])}</strong><span id="fleet-sources" {source_summary_attrs}>{source_summaries['now']}</span></aside>
   </section>
-  <div class="data-note"><b>Preview data:</b> {html.escape(PREVIEW_DATA_NOTE)}</div>
+  <div class="data-note"><b>Preview data:</b> {html.escape(data_quality_note)}</div>
   <section aria-labelledby="reported-heading">
     <div class="section-head"><div><div class="section-kicker">Live index</div><h2 id="reported-heading">Most reported models right now</h2></div><div class="updated">Updated {updated}<br><span id="window-description">Rolling 24-hour window</span></div></div>
     <div class="controls">
@@ -645,7 +675,8 @@ footer{{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--faint);
 def render_dashboard(
         model: str, complaints: list[Complaint], assessments: list[Assessment],
         out_path: str, generated_at: float | None = None,
-        window_days: int = 21) -> None:
+        window_days: int = 21,
+        data_quality_note: str = PREVIEW_DATA_NOTE) -> None:
     """Render an aggregate-only family detail page with exact-model controls."""
     generated_at = generated_at or max(
         (complaint.ts for complaint in complaints), default=0,
@@ -690,7 +721,8 @@ def render_dashboard(
             )
             if variant["key"] != "all":
                 summary["weather_key"], summary["weather_label"] = (
-                    _weather_style("quiet", summary["categories"])
+                    _weather_style(
+                        "quiet", summary["categories"], summary["valences"])
                 )
             category_items = sorted(
                 summary["categories"].items(),
@@ -772,7 +804,7 @@ header{{border-bottom:1px solid rgba(255,255,255,.06)}} .nav{{min-height:72px;di
     <div class="detail-grid"><div><span class="section-label">Report activity</span><div class="chart" id="chart"></div></div><div><span class="section-label">Report themes</span><div class="theme-list" id="theme-list"></div><span class="section-label" style="margin-top:18px">Source mix</span><div class="source-list" id="source-list"></div></div></div>
     <div class="actions"><p>Signal status remains family-level until an exact model has enough non-synthetic history for a defensible baseline.</p><a class="report-link" id="report-link" href="report.html">Report this model →</a></div>
   </section>
-  <div class="data-note"><b>Preview data:</b> {html.escape(PREVIEW_DATA_NOTE)}</div>
+  <div class="data-note"><b>Preview data:</b> {html.escape(data_quality_note)}</div>
 </main>
 <footer><div class="shell">A report trend says something may have changed. It does not say why.</div></footer>
 <script id="detail-data" type="application/json">{payload_json}</script>
