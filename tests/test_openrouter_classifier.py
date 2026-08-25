@@ -7,6 +7,7 @@ import unittest
 from barometer.adjudicator import build_adjudication_request
 from barometer.openrouter_classifier import (
     DEFAULT_CLASSIFIER_MODEL,
+    MODEL_PRICING_USD_PER_MILLION,
     OpenRouterTransport,
     build_openrouter_payload,
 )
@@ -64,6 +65,21 @@ class OpenRouterClassifierTests(unittest.TestCase):
         self.assertNotIn("secret-test-key", json.dumps(captured["payload"]))
         self.assertEqual(transport.usage_summary()["reported_cost_usd"], 0.00032)
         self.assertGreater(transport.estimated_cost_upper_bound(request), 0)
+
+    def test_estimate_uses_selected_models_configured_price(self):
+        request = build_adjudication_request(
+            "Opus 5 seems much warmer.", "claude", "claude-opus-5")
+        gemini = OpenRouterTransport("test-key")
+        luna = OpenRouterTransport("test-key", model="openai/gpt-5.6-luna")
+        self.assertGreater(
+            gemini.estimated_cost_upper_bound(request),
+            luna.estimated_cost_upper_bound(request),
+        )
+        self.assertIn(DEFAULT_CLASSIFIER_MODEL, MODEL_PRICING_USD_PER_MILLION)
+
+    def test_unknown_model_is_refused_without_a_local_price_ceiling(self):
+        with self.assertRaisesRegex(ValueError, "no local price ceiling"):
+            OpenRouterTransport("test-key", model="unpriced/example")
 
 
 if __name__ == "__main__":

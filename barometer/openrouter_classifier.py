@@ -26,10 +26,12 @@ from .vocabulary import (
 
 
 OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_CLASSIFIER_MODEL = "openai/gpt-5.6-luna"
+DEFAULT_CLASSIFIER_MODEL = "google/gemini-3.5-flash-lite"
 DEFAULT_MAX_OUTPUT_TOKENS = 1200
-MODEL_INPUT_USD_PER_MILLION = 0.20
-MODEL_OUTPUT_USD_PER_MILLION = 1.20
+MODEL_PRICING_USD_PER_MILLION = {
+    "google/gemini-3.5-flash-lite": (0.30, 2.50),
+    "openai/gpt-5.6-luna": (0.20, 1.20),
+}
 
 
 class OpenRouterClassifierError(RuntimeError):
@@ -187,6 +189,9 @@ class OpenRouterTransport:
             raise ValueError("OpenRouter API key is required")
         if max_output_tokens < 100 or max_output_tokens > 4000:
             raise ValueError("max_output_tokens must be between 100 and 4000")
+        if model not in MODEL_PRICING_USD_PER_MILLION:
+            raise ValueError(
+                "no local price ceiling is configured for model: " + model)
         self.api_key = api_key
         self.model = model
         self.max_output_tokens = max_output_tokens
@@ -206,12 +211,13 @@ class OpenRouterTransport:
 
     def estimated_cost_upper_bound(self, request: dict) -> float:
         payload = self.payload(request)
+        input_rate, output_rate = MODEL_PRICING_USD_PER_MILLION[self.model]
         # One token per three JSON characters is intentionally conservative for
         # this predominantly English/schema workload.
         input_tokens = (len(json.dumps(payload, ensure_ascii=False)) + 2) // 3
         return (
-            input_tokens * MODEL_INPUT_USD_PER_MILLION / 1_000_000
-            + self.max_output_tokens * MODEL_OUTPUT_USD_PER_MILLION / 1_000_000
+            input_tokens * input_rate / 1_000_000
+            + self.max_output_tokens * output_rate / 1_000_000
         )
 
     def __call__(self, request: dict) -> str:
