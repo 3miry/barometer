@@ -50,6 +50,10 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - `barometer/sampling_controls.py` — private reversible source suppression.
   X author IDs and handle snapshots remain private; review actions affect only
   future sampling, retain an audit record, and never delete the reviewed post.
+- `barometer/temporal.py` — explainable private review priority. Explicit
+  current/recent/change phrases raise a report in the queue and expose their
+  matched cues; a zero-score undated report remains reviewable and retains its
+  received date as day zero.
 - `barometer/probes.py` and `barometer/data/probe_registry.ledger.json` —
   offline-only collection-run provenance and an append-only probe lifecycle.
   The registry starts empty and cannot activate collection.

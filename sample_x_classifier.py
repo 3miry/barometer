@@ -14,6 +14,7 @@ import time
 from barometer.adapters import XAdapter
 from barometer.sampling_controls import SamplingControlStore
 from barometer.store import Store
+from barometer.temporal import temporal_priority
 
 
 def parse_args(argv=None):
@@ -61,6 +62,13 @@ def main(argv=None) -> None:
             "public_weather_updated": False,
             "unique_candidates_returned_to_sampler": len(candidates),
             "new_private_candidates": new_candidates,
+            "temporal_priority": {
+                band: sum(
+                    temporal_priority(item.text).band == band
+                    for item in candidates
+                )
+                for band in ("very high", "high", "medium", "undated")
+            },
             "errors": adapter.errors,
             "usage": adapter.usage_report(),
         }

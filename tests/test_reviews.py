@@ -135,6 +135,8 @@ class ReviewStorageTests(unittest.TestCase):
         self.assertIn("data-replace", page)
         self.assertIn("Suppress future posts", page)
         self.assertIn("affects future collection only", page)
+        self.assertIn("Temporal priority", page)
+        self.assertIn("temporal_priority.score", page)
 
     def test_build_is_read_only_and_review_db_contains_no_raw_text(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -148,6 +150,9 @@ class ReviewStorageTests(unittest.TestCase):
             self.assertEqual(source.read_bytes(), before)
             self.assertEqual(len(items), 5)
             self.assertEqual(items[0]["report_id"], "report-one")
+            self.assertEqual(items[0]["temporal_priority"]["score"], 3)
+            self.assertEqual(
+                items[0]["temporal_priority"]["cues"], ["lately"])
             connection = sqlite3.connect(review)
             try:
                 columns = {
