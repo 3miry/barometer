@@ -117,17 +117,33 @@ chatter as well as apparent reports in an ignored private database so the broad
 lane can discover vocabulary without complaint-word selection bias:
 
 ```powershell
-# 60 reads: four discovery families plus two rotating depth families
-python sample_x_classifier.py --daily-read-limit 60
+# Offline: allocate a dated v5 batch and print its next command
+python run_x_batch.py plan --daily-read-limit 80
 
-# 80 reads: full discovery + depth pass for all four families
-python sample_x_classifier.py --daily-read-limit 80
+# Paid and explicit: full discovery + depth pass for all four families
+python run_x_batch.py collect --batch-id <printed-batch-id> --execute
+
+# Offline cost estimate, then a one-call paid smoke test
+python run_x_batch.py classify --batch-id <printed-batch-id>
+python run_x_batch.py classify --batch-id <printed-batch-id> `
+  --max-new-calls 1 --execute
 ```
 
-Both commands require `X_BEARER_TOKEN`. They search only the current UTC day,
-regardless of whether a returned post literally says `today`. They use current
-pilot terms plus active private author/content exclusions, write no public
-weather, and still require the command to be run explicitly.
+Collection requires `X_BEARER_TOKEN`; paid classification requires
+`OPENROUTER_API_KEY`. X collection searches only the current UTC day, regardless
+of whether a returned post literally says `today`. It uses current pilot terms
+plus active private author/content exclusions, writes no public weather, and
+still requires the command to be run explicitly.
+
+`run_x_batch.py` keeps candidates, frozen blind predictions, human decisions,
+and aggregate evaluation in one ignored batch directory. Collection refuses a
+second run unless `--resume` is deliberate; classification is resumable and
+must finish before human review begins. Use `review --batch-id ... --port 8767`
+to open that batch and `evaluate --batch-id ...` after review. The wrapper never
+copies credentials into its manifest and no stage updates public weather.
+Quarantined model-format failures can be retried with
+`classify --batch-id ... --retry-failures --execute`; prior failures remain in
+the private prediction audit history.
 
 Review retained proposals locally without changing the source database or
 public weather:

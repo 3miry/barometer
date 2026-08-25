@@ -37,6 +37,11 @@ def parse_args(argv=None):
         "--max-new-calls", type=int,
         help="stop after this many new paid calls; useful for a one-call smoke test")
     parser.add_argument(
+        "--retry-failures", action="store_true",
+        help=("retry only quarantined failures; preserve earlier failure records "
+              "in failure_history"),
+    )
+    parser.add_argument(
         "--execute", action="store_true",
         help="make paid model calls; without this flag, print a dry-run estimate")
     args = parser.parse_args(argv)
@@ -69,6 +74,7 @@ def _empty_output(model: str) -> dict:
         "model": model,
         "predictions": {},
         "failures": {},
+        "failure_history": {},
         "usage": {},
     }
 
@@ -101,7 +107,9 @@ def main(argv=None) -> None:
             raise SystemExit("existing predictions use a different model")
     else:
         output = _empty_output(args.model)
-    completed = set(output["predictions"]) | set(output["failures"])
+    retrying_failures = set(output["failures"]) if args.retry_failures else set()
+    completed = set(output["predictions"]) | (
+        set(output["failures"]) - retrying_failures)
     pending = [
         request for item, request in zip(items, requests)
         if item["review_unit_id"] not in completed
@@ -128,6 +136,7 @@ def main(argv=None) -> None:
         "local_cost_ceiling_usd": args.max_cost_usd,
         "execute": args.execute,
         "human_decisions_present": False,
+        "retrying_failures": len(retrying_failures),
     }
     if previous_cost + projected > args.max_cost_usd:
         raise SystemExit(json.dumps({
@@ -137,6 +146,12 @@ def main(argv=None) -> None:
     if not args.execute:
         print(json.dumps(summary, indent=2, sort_keys=True))
         return
+
+    if retrying_failures:
+        history = output.setdefault("failure_history", {})
+        for unit_id in sorted(retrying_failures):
+            history.setdefault(unit_id, []).append(output["failures"].pop(unit_id))
+        _atomic_json(output_path, output)
 
     new_calls = 0
     for item, request in zip(items, requests):
