@@ -81,6 +81,16 @@ class ReviewAnalysisTests(unittest.TestCase):
             self.assertTrue(provenance["query_provenance_available"])
             self.assertEqual(provenance["reports_with_query_provenance"], 1)
             self.assertEqual(provenance["reports_without_query_provenance"], 1)
+            lane_yield = provenance["human_yield_by_lane_membership"]
+            self.assertEqual(
+                lane_yield["targeted_only"]["useful_reports"], 1)
+            self.assertEqual(
+                lane_yield["no_query_provenance"]["useful_reports"], 0)
+            self.assertEqual(
+                result["human_yield_by_temporal_language"]
+                ["no_temporal_cue"]["source_reports"],
+                2,
+            )
             targeting = result["query_targeting_hypothesis"]
             self.assertEqual(
                 targeting["buckets"]["exact_variant"]["useful_reports"], 1)

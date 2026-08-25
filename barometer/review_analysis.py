@@ -76,7 +76,8 @@ def _observation_signature(item: dict) -> tuple:
     )
 
 
-def _source_provenance(path: Path, report_ids: set[str]) -> dict:
+def _source_provenance(
+        path: Path, report_ids: set[str], outcomes: dict[str, str]) -> dict:
     connection = sqlite3.connect(
         f"file:{path.resolve().as_posix()}?mode=ro", uri=True)
     try:
@@ -121,6 +122,18 @@ def _source_provenance(path: Path, report_ids: set[str]) -> dict:
             report_lanes[report_id].add(lane)
             runs.add(run_id)
         covered = set(report_lanes)
+        membership_yield: dict[str, Counter] = defaultdict(Counter)
+        for report_id in report_ids:
+            lanes = report_lanes.get(report_id, set())
+            if lanes == {"discovery"}:
+                membership = "discovery_only"
+            elif lanes == {"targeted"}:
+                membership = "targeted_only"
+            elif {"discovery", "targeted"} <= lanes:
+                membership = "discovery_and_targeted"
+            else:
+                membership = "no_query_provenance"
+            membership_yield[membership][outcomes[report_id]] += 1
         return {
             "query_provenance_available": True,
             "reports_with_query_provenance": len(covered),
@@ -130,6 +143,12 @@ def _source_provenance(path: Path, report_ids: set[str]) -> dict:
                 len(lanes) > 1 for lanes in report_lanes.values()),
             "reports_by_lane": {
                 lane: len(ids) for lane, ids in sorted(reports_by_lane.items())
+            },
+            "human_yield_by_lane_membership": {
+                membership: _targeting_summary(membership_yield[membership])
+                for membership in (
+                    "discovery_only", "targeted_only",
+                    "discovery_and_targeted", "no_query_provenance")
             },
         }
     finally:
@@ -168,8 +187,10 @@ def analyze_review_batch(
         statuses[status] += 1
 
     source_outcomes = Counter()
+    outcome_by_report: dict[str, str] = {}
     source_yield = defaultdict(Counter)
     targeting_yield = defaultdict(Counter)
+    temporal_language_yield = defaultdict(Counter)
     for report_id, rows in grouped.items():
         fresh = [
             row["decision"] for row in rows
@@ -184,8 +205,15 @@ def analyze_review_batch(
         else:
             outcome = "no_attributable_signal"
         source_outcomes[outcome] += 1
+        outcome_by_report[report_id] = outcome
         source_yield[rows[0]["source"]][outcome] += 1
         targeting_yield[_query_targeting_bucket(rows[0])][outcome] += 1
+        temporal_bucket = (
+            "temporal_cue_present"
+            if rows[0]["temporal_priority"]["score"] > 0
+            else "no_temporal_cue"
+        )
+        temporal_language_yield[temporal_bucket][outcome] += 1
 
     detection = Counter()
     exact_structured = 0
@@ -244,6 +272,10 @@ def analyze_review_batch(
             source: dict(sorted(counts.items()))
             for source, counts in sorted(source_yield.items())
         },
+        "human_yield_by_temporal_language": {
+            bucket: _targeting_summary(temporal_language_yield[bucket])
+            for bucket in ("temporal_cue_present", "no_temporal_cue")
+        },
         "query_targeting_hypothesis": {
             "warning": (
                 "Observed name shapes in this reviewed development batch; "
@@ -282,5 +314,6 @@ def analyze_review_batch(
             "exact_structured_matches": exact_structured,
         },
         "comparison_target_slices": dict(sorted(comparison_slices.items())),
-        "collection_provenance": _source_provenance(source_path, report_ids),
+        "collection_provenance": _source_provenance(
+            source_path, report_ids, outcome_by_report),
     }
