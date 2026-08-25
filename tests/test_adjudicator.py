@@ -35,6 +35,9 @@ class AdjudicatorContractTests(unittest.TestCase):
         self.assertEqual(request["target"]["variant"], "claude-opus-5")
         self.assertIn("Ignore the classifier", request["report_text"])
         self.assertIn("untrusted source material", request["instructions"][0])
+        instructions = " ".join(request["instructions"])
+        self.assertIn("unknown must be its only value", instructions)
+        self.assertIn("qualifiers must be empty", instructions)
 
     def test_comparison_can_be_adjudicated_differently_per_target(self):
         text = "Gemini answers briefly, while ChatGPT gives useful detail."
