@@ -34,11 +34,16 @@ def parse_args(argv=None):
     parser.add_argument("--model", default=DEFAULT_CLASSIFIER_MODEL)
     parser.add_argument("--max-cost-usd", type=float, default=0.75)
     parser.add_argument(
+        "--max-new-calls", type=int,
+        help="stop after this many new paid calls; useful for a one-call smoke test")
+    parser.add_argument(
         "--execute", action="store_true",
         help="make paid model calls; without this flag, print a dry-run estimate")
     args = parser.parse_args(argv)
     if not 0 < args.max_cost_usd <= 5:
         parser.error("--max-cost-usd must be greater than 0 and no more than 5")
+    if args.max_new_calls is not None and args.max_new_calls < 1:
+        parser.error("--max-new-calls must be positive")
     if args.execute and not os.environ.get("OPENROUTER_API_KEY"):
         parser.error("OPENROUTER_API_KEY is required with --execute")
     return args
@@ -105,6 +110,14 @@ def main(argv=None) -> None:
         transport.estimated_cost_upper_bound(request) for request in pending)
     previous_cost = float(
         (output.get("usage") or {}).get("reported_cost_usd") or 0)
+    previous_usage = {
+        "calls": int((output.get("usage") or {}).get("calls") or 0),
+        "prompt_tokens": int(
+            (output.get("usage") or {}).get("prompt_tokens") or 0),
+        "completion_tokens": int(
+            (output.get("usage") or {}).get("completion_tokens") or 0),
+        "reported_cost_usd": previous_cost,
+    }
     summary = {
         "model": args.model,
         "target_slices": len(items),
@@ -125,11 +138,15 @@ def main(argv=None) -> None:
         print(json.dumps(summary, indent=2, sort_keys=True))
         return
 
+    new_calls = 0
     for item, request in zip(items, requests):
         unit_id = item["review_unit_id"]
         if unit_id in output["predictions"] or unit_id in output["failures"]:
             continue
-        if transport.reported_cost_usd >= args.max_cost_usd:
+        if (args.max_new_calls is not None
+                and new_calls >= args.max_new_calls):
+            break
+        if previous_cost + transport.reported_cost_usd >= args.max_cost_usd:
             raise SystemExit("local cost ceiling reached before batch completion")
         try:
             result = adjudicate_target(
@@ -162,13 +179,31 @@ def main(argv=None) -> None:
                 "classification": classification,
                 "usage": dict(transport.last_usage),
             }
-        output["usage"] = transport.usage_summary()
+        new_calls += 1
+        current_usage = transport.usage_summary()
+        output["usage"] = {
+            "calls": previous_usage["calls"] + current_usage["calls"],
+            "prompt_tokens": (
+                previous_usage["prompt_tokens"]
+                + current_usage["prompt_tokens"]),
+            "completion_tokens": (
+                previous_usage["completion_tokens"]
+                + current_usage["completion_tokens"]),
+            "reported_cost_usd": round(
+                previous_usage["reported_cost_usd"]
+                + current_usage["reported_cost_usd"],
+                6,
+            ),
+        }
         _atomic_json(output_path, output)
 
     print(json.dumps({
         **summary,
         "predictions": len(output["predictions"]),
         "failures": len(output["failures"]),
+        "new_calls": new_calls,
+        "remaining_target_slices": (
+            len(items) - len(output["predictions"]) - len(output["failures"])),
         "usage": output["usage"],
         "raw_report_text_persisted_in_predictions": False,
     }, indent=2, sort_keys=True))
