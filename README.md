@@ -53,7 +53,9 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - `barometer/temporal.py` — explainable private review priority. Explicit
   current/recent/change phrases raise a report in the queue and expose their
   matched cues; a zero-score undated report remains reviewable and retains its
-  received date as day zero.
+  received date as day zero. The default review order combines this with the
+  classifier's eligibility tier, preventing dated chatter from outranking a
+  genuine undated behaviour report; temporal-only and newest views remain.
 - `barometer/probes.py` and `barometer/data/probe_registry.ledger.json` —
   offline-only collection-run provenance and an append-only probe lifecycle.
   The registry starts empty and cannot activate collection.

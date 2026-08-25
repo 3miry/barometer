@@ -135,7 +135,9 @@ class ReviewStorageTests(unittest.TestCase):
         self.assertIn("data-replace", page)
         self.assertIn("Suppress future posts", page)
         self.assertIn("affects future collection only", page)
-        self.assertIn("Temporal priority", page)
+        self.assertIn("Signal + temporal priority", page)
+        self.assertIn("Temporal only", page)
+        self.assertIn("behaviour_report:40", page)
         self.assertIn("temporal_priority.score", page)
 
     def test_build_is_read_only_and_review_db_contains_no_raw_text(self):
