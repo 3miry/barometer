@@ -302,6 +302,13 @@ and is not connected to collection, public aggregation, or automatic approval.
 The deterministic rules remain the cheap high-precision baseline; an eventual
 model transport is reserved for comparison, ambiguity, and novelty adjudication.
 
+The first external shadow transport uses OpenRouter only through the explicit
+`classify_x_batch.py --execute` gate. It requests strict structured output,
+requires provider support for every parameter, denies provider data collection,
+enforces zero data retention, and refuses a batch whose conservative projected
+cost exceeds the local ceiling. Predictions are frozen separately from human
+review decisions and never contain retained report text or URLs.
+
 Classifier evaluation needs a human-labelled, versioned test set balanced across
 models, sources, positive and negative valence, short and long texts, sarcasm,
 quoted speech, and ambiguous comparison language. Report precision, recall,

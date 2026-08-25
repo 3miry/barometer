@@ -28,6 +28,9 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
   — conservative structured classification and read-only shadow evaluation.
 - `barometer/adjudicator.py` — offline, provider-neutral contract for future
   target-scoped model adjudication; it contains no API client and makes no calls.
+- `barometer/openrouter_classifier.py` and `classify_x_batch.py` — explicitly
+  enabled, ZDR-enforced blind classifier evaluation with strict structured
+  outputs, resumable private predictions, and a local batch cost ceiling.
   They are disconnected from detector v0 and public output; see
   `SHADOW_CLASSIFIER.md`.
 - `SIGNAL_DETECTION.md` — the versioned post-MVP architecture for governed
