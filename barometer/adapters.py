@@ -21,7 +21,7 @@ from .probes import CollectionRun
 USER_AGENT = "the-barometer/0.1 (fleet weather, not verdicts)"
 X_POST_READ_USD = 0.005
 X_RECENT_SEARCH_URL = "https://api.x.com/2/tweets/search/recent"
-X_QUERY_VERSION = 3
+X_QUERY_VERSION = 4
 
 
 @dataclass(frozen=True)
@@ -105,14 +105,36 @@ X_TEMPORAL_SIGNAL_QUERIES = (
 )
 
 
-def x_default_query_specs(day_utc: str) -> tuple[XQuerySpec, ...]:
-    """Four neutral discovery queries plus two rotating temporal lanes."""
+def _rotating_specs(
+        specs: tuple[XQuerySpec, ...], count: int, offset: int
+) -> tuple[XQuerySpec, ...]:
+    if count >= len(specs):
+        return specs
+    return tuple(specs[(offset + index) % len(specs)] for index in range(count))
+
+
+def x_default_query_specs(
+        day_utc: str, daily_read_limit: int = 60) -> tuple[XQuerySpec, ...]:
+    """Spend about two thirds of available query slots on temporal probes.
+
+    X recent search requires at least ten results per request. At the default
+    60-read ceiling this means all four temporal family probes run first, while
+    two neutral discovery families rotate daily for open-vocabulary coverage.
+    """
     day_number = datetime.fromisoformat(day_utc).date().toordinal()
-    offset = (day_number % 2) * 2
-    return (
-        X_MODEL_IDENTITY_QUERIES
-        + X_TEMPORAL_SIGNAL_QUERIES[offset:offset + 2]
+    query_slots = max(1, min(6, daily_read_limit // 10))
+    temporal_count = min(
+        len(X_TEMPORAL_SIGNAL_QUERIES),
+        max(1, (query_slots * 2 + 2) // 3),
     )
+    if query_slots > 1:
+        temporal_count = min(temporal_count, query_slots - 1)
+    discovery_count = query_slots - temporal_count
+    temporal = _rotating_specs(
+        X_TEMPORAL_SIGNAL_QUERIES, temporal_count, day_number % 4)
+    discovery = _rotating_specs(
+        X_MODEL_IDENTITY_QUERIES, discovery_count, (day_number + 2) % 4)
+    return temporal + discovery
 
 def live_transport(url: str) -> dict:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
@@ -398,7 +420,8 @@ class XAdapter:
             str(item.handle_snapshot)
             for item in suppressed_authors if item.handle_snapshot)
         if queries is None:
-            self.query_specs = x_default_query_specs(self._day())
+            self.query_specs = x_default_query_specs(
+                self._day(), daily_read_limit)
         else:
             self.query_specs = tuple(
                 XQuerySpec(
@@ -450,6 +473,9 @@ class XAdapter:
             "saturated_queries": 0,
             "budget_exhausted": False,
             "query_version": X_QUERY_VERSION,
+            "planned_queries": len(self.query_specs),
+            "planned_temporal_queries": sum(
+                spec.lane == "targeted" for spec in self.query_specs),
             "query_runs": [],
         }
 

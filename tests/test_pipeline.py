@@ -228,7 +228,13 @@ class AdapterTests(unittest.TestCase):
                 self.assertEqual(usage["candidate_posts"], 6)
                 self.assertEqual(usage["accepted_complaints"], 3)
                 self.assertEqual(usage["estimated_cost_usd_upper_bound"], 0.03)
+                self.assertEqual(usage["planned_queries"], 6)
+                self.assertEqual(usage["planned_temporal_queries"], 4)
                 self.assertEqual(len(adapter.collection_batches), 6)
+                self.assertEqual(
+                    [batch.run.lane for batch in adapter.collection_batches],
+                    ["targeted"] * 4 + ["discovery"] * 2,
+                )
 
                 # Cursors suppress old posts. Empty successful responses refund
                 # their reservation, so the conservative daily ledger stays put.
@@ -237,7 +243,7 @@ class AdapterTests(unittest.TestCase):
                 self.assertTrue(all("since_id" in p for p in calls[6:]))
                 self.assertTrue(all(p["max_results"] == ["10"] for p in calls))
 
-    def test_x_default_queries_keep_discovery_and_rotate_temporal_lanes(self):
+    def test_x_default_queries_prioritise_temporal_and_rotate_discovery(self):
         first = x_default_query_specs("2026-06-12")
         second = x_default_query_specs("2026-06-13")
         self.assertEqual(len(first), 6)
@@ -250,9 +256,9 @@ class AdapterTests(unittest.TestCase):
             {item.query_id for item in first[4:]},
             {item.query_id for item in second[4:]},
         )
-        self.assertEqual({item.lane for item in first[:4]}, {"discovery"})
-        self.assertEqual({item.lane for item in first[4:]}, {"targeted"})
-        self.assertTrue(all("today" in item.query for item in first[4:]))
+        self.assertEqual({item.lane for item in first[:4]}, {"targeted"})
+        self.assertEqual({item.lane for item in first[4:]}, {"discovery"})
+        self.assertTrue(all("today" in item.query for item in first[:4]))
         self.assertTrue(all(len(item.query) <= 512 for item in first + second))
         combined = " ".join(item.query for item in first + second).lower()
         for excluded in (
@@ -264,6 +270,19 @@ class AdapterTests(unittest.TestCase):
             item.query_id for item in first + second))
         self.assertIn('"sol 5.6"', combined)
         self.assertIn('"codex 5.6"', combined)
+
+        reduced = x_default_query_specs("2026-06-12", daily_read_limit=30)
+        self.assertEqual(len(reduced), 3)
+        self.assertEqual(
+            [item.lane for item in reduced],
+            ["targeted", "targeted", "discovery"],
+        )
+        minimal_mixed = x_default_query_specs(
+            "2026-06-12", daily_read_limit=20)
+        self.assertEqual(
+            [item.lane for item in minimal_mixed],
+            ["targeted", "discovery"],
+        )
 
     def test_x_private_candidate_mode_retains_chatter_for_review(self):
         with tempfile.TemporaryDirectory() as directory:

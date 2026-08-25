@@ -56,6 +56,11 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
   received date as day zero. The default review order combines this with the
   classifier's eligibility tier, preventing dated chatter from outranking a
   genuine undated behaviour report; temporal-only and newest views remain.
+- X query plan v4 prioritises temporal language before data is purchased. At
+  the default 60-read ceiling, all four model-family temporal probes run first
+  and two valence-neutral discovery families rotate daily. Smaller budgets keep
+  roughly two thirds of query slots temporal; budgets allowing at least two
+  requests preserve one discovery slot.
 - `barometer/probes.py` and `barometer/data/probe_registry.ledger.json` —
   offline-only collection-run provenance and an append-only probe lifecycle.
   The registry starts empty and cannot activate collection.
