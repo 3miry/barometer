@@ -21,7 +21,7 @@ from .probes import CollectionRun
 USER_AGENT = "the-barometer/0.1 (fleet weather, not verdicts)"
 X_POST_READ_USD = 0.005
 X_RECENT_SEARCH_URL = "https://api.x.com/2/tweets/search/recent"
-X_QUERY_VERSION = 2
+X_QUERY_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -49,7 +49,9 @@ X_MODEL_IDENTITY_QUERIES = (
     XQuerySpec(
         "x.discovery.model_identity.gpt", "gpt", "discovery",
         '("GPT-5.5" OR "GPT 5.5" OR "GPT-5.6" OR "GPT 5.6" '
-        'OR "ChatGPT Sol" OR "ChatGPT Luna" OR "ChatGPT Terra") '
+        'OR "ChatGPT Sol" OR "ChatGPT Luna" OR "ChatGPT Terra" '
+        'OR "5.6 Sol" OR "Sol 5.6" OR "5.6 Luna" OR "Luna 5.6" '
+        'OR "5.6 Terra" OR "Terra 5.6" OR "Codex 5.6") '
         'lang:en -is:retweet',
     ),
     XQuerySpec(
@@ -65,31 +67,52 @@ X_MODEL_IDENTITY_QUERIES = (
     ),
 )
 
-X_BROAD_IDENTITY_QUERIES = (
+X_TEMPORAL_SIGNAL_QUERIES = (
     XQuerySpec(
-        "x.discovery.product_identity.claude", "claude", "discovery",
-        'Claude (AI OR model OR chatbot OR LLM) lang:en -is:retweet',
+        "x.temporal.model_identity.claude", "claude", "targeted",
+        '("Fable 5" OR "Opus 5" OR "Sonnet 5" OR "Opus 4.8" '
+        'OR "Claude Opus" OR "Claude Sonnet" OR "Claude Fable") '
+        '("today" OR "this morning" OR "tonight" OR "recently" OR '
+        '"lately" OR "suddenly" OR "first time" OR "this week" OR '
+        '"has become" OR "used to" OR "anymore") lang:en -is:retweet',
     ),
     XQuerySpec(
-        "x.discovery.product_identity.gpt", "gpt", "discovery",
-        'ChatGPT lang:en -is:retweet',
+        "x.temporal.model_identity.gpt", "gpt", "targeted",
+        '("GPT-5.5" OR "GPT 5.5" OR "GPT-5.6" OR "GPT 5.6" '
+        'OR "ChatGPT Sol" OR "ChatGPT Luna" OR "ChatGPT Terra" '
+        'OR "5.6 Sol" OR "Sol 5.6" OR "5.6 Luna" OR "Luna 5.6" '
+        'OR "5.6 Terra" OR "Terra 5.6" OR "Codex 5.6") '
+        '("today" OR "this morning" OR "tonight" OR "recently" OR '
+        '"lately" OR "suddenly" OR "first time" OR "this week" OR '
+        '"has become" OR "used to" OR "anymore") lang:en -is:retweet',
     ),
     XQuerySpec(
-        "x.discovery.product_identity.gemini", "gemini", "discovery",
-        'Gemini (AI OR model OR chatbot OR LLM) lang:en -is:retweet',
+        "x.temporal.model_identity.gemini", "gemini", "targeted",
+        '("Gemini 3.1 Pro" OR "Gemini Pro 3.1" OR "Gemini Flash 3.5" '
+        'OR "Gemini 3.5 Flash" OR "Gemini Flash-Lite 3.7" '
+        'OR "Gemini 3.7 Flash Lite") '
+        '("today" OR "this morning" OR "tonight" OR "recently" OR '
+        '"lately" OR "suddenly" OR "first time" OR "this week" OR '
+        '"has become" OR "used to" OR "anymore") lang:en -is:retweet',
     ),
     XQuerySpec(
-        "x.discovery.product_identity.grok", "grok", "discovery",
-        'Grok (AI OR model OR chatbot OR LLM) lang:en -is:retweet',
+        "x.temporal.model_identity.grok", "grok", "targeted",
+        '("Grok 4.5" OR "Grok-4.5" OR "Grok 4.6" OR "Grok-4.6") '
+        '("today" OR "this morning" OR "tonight" OR "recently" OR '
+        '"lately" OR "suddenly" OR "first time" OR "this week" OR '
+        '"has become" OR "used to" OR "anymore") lang:en -is:retweet',
     ),
 )
 
 
 def x_default_query_specs(day_utc: str) -> tuple[XQuerySpec, ...]:
-    """Four high-yield model queries plus a rotating two-family broad audit."""
+    """Four neutral discovery queries plus two rotating temporal lanes."""
     day_number = datetime.fromisoformat(day_utc).date().toordinal()
     offset = (day_number % 2) * 2
-    return X_MODEL_IDENTITY_QUERIES + X_BROAD_IDENTITY_QUERIES[offset:offset + 2]
+    return (
+        X_MODEL_IDENTITY_QUERIES
+        + X_TEMPORAL_SIGNAL_QUERIES[offset:offset + 2]
+    )
 
 def live_transport(url: str) -> dict:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
@@ -527,8 +550,9 @@ class XAdapter:
                 cost_units=actual,
                 cost_usd_upper_bound=actual * X_POST_READ_USD,
                 frame_note=(
-                    "Valence-neutral identity query; X recent search is a "
-                    "ranked frame, not a random platform sample."),
+                    f"Valence-neutral {spec.lane} model-identity query; X "
+                    "recent search is a ranked frame, not a random platform "
+                    "sample."),
             )
             self.collection_batches.append(XCollectionBatch(
                 run, tuple(query_complaints), tuple(result_ranks)))

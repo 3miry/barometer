@@ -236,7 +236,7 @@ class AdapterTests(unittest.TestCase):
                 self.assertTrue(all("since_id" in p for p in calls[6:]))
                 self.assertTrue(all(p["max_results"] == ["10"] for p in calls))
 
-    def test_x_default_queries_are_valence_neutral_and_rotate_broad_audit(self):
+    def test_x_default_queries_keep_discovery_and_rotate_temporal_lanes(self):
         first = x_default_query_specs("2026-06-12")
         second = x_default_query_specs("2026-06-13")
         self.assertEqual(len(first), 6)
@@ -249,12 +249,20 @@ class AdapterTests(unittest.TestCase):
             {item.query_id for item in first[4:]},
             {item.query_id for item in second[4:]},
         )
+        self.assertEqual({item.lane for item in first[:4]}, {"discovery"})
+        self.assertEqual({item.lane for item in first[4:]}, {"targeted"})
+        self.assertTrue(all("today" in item.query for item in first[4:]))
+        self.assertTrue(all(len(item.query) <= 512 for item in first + second))
         combined = " ".join(item.query for item in first + second).lower()
         for excluded in (
             "anthropic", "openai", "xai", "google ai", "worse", "broken",
             "nerfed", "lazy", "dumb", "degraded",
         ):
             self.assertNotIn(excluded, combined)
+        self.assertNotIn("product_identity", " ".join(
+            item.query_id for item in first + second))
+        self.assertIn('"sol 5.6"', combined)
+        self.assertIn('"codex 5.6"', combined)
 
     def test_x_private_candidate_mode_retains_chatter_for_review(self):
         with tempfile.TemporaryDirectory() as directory:
