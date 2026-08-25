@@ -14,6 +14,8 @@ class Complaint:
     url: str | None = None
     seed_url: str | None = None   # link the post is sharing, if any
     variant: str | None = None    # exact model only when the report says it
+    author_id: str | None = None  # private stable source account identifier
+    author_handle: str | None = None  # private display snapshot, never public
 
 @dataclass
 class CanaryReading:

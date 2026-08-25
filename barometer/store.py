@@ -8,7 +8,8 @@ from .probes import CollectionRun
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS complaints(
   id TEXT PRIMARY KEY, ts REAL, source TEXT, model TEXT,
-  text TEXT, url TEXT, seed_url TEXT, variant TEXT);
+  text TEXT, url TEXT, seed_url TEXT, variant TEXT,
+  author_id TEXT, author_handle TEXT);
 CREATE TABLE IF NOT EXISTS readings(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, model TEXT,
   logprobs TEXT, fingerprint TEXT);
@@ -50,6 +51,10 @@ class Store:
         }
         if "variant" not in columns:
             self.db.execute("ALTER TABLE complaints ADD COLUMN variant TEXT")
+        if "author_id" not in columns:
+            self.db.execute("ALTER TABLE complaints ADD COLUMN author_id TEXT")
+        if "author_handle" not in columns:
+            self.db.execute("ALTER TABLE complaints ADD COLUMN author_handle TEXT")
         self.db.execute(
             "CREATE INDEX IF NOT EXISTS ix_c_variant_ts "
             "ON complaints(variant, ts)"
@@ -120,10 +125,10 @@ class Store:
                 complaint_id = _cid(c)
                 cur = self.db.execute(
                     "INSERT OR IGNORE INTO complaints"
-                    "(id,ts,source,model,text,url,seed_url,variant) "
-                    "VALUES (?,?,?,?,?,?,?,?)",
+                    "(id,ts,source,model,text,url,seed_url,variant,"
+                    "author_id,author_handle) VALUES (?,?,?,?,?,?,?,?,?,?)",
                     (complaint_id, c.ts, c.source, c.model, c.text, c.url,
-                     c.seed_url, c.variant))
+                     c.seed_url, c.variant, c.author_id, c.author_handle))
                 new += cur.rowcount
                 if collection_run is not None:
                     rank = (
@@ -172,7 +177,8 @@ class Store:
 
     def complaints(self, model: str | None = None,
                    since: float = 0.0) -> list[Complaint]:
-        q = ("SELECT ts,source,model,text,url,seed_url,variant "
+        q = ("SELECT ts,source,model,text,url,seed_url,variant,"
+             "author_id,author_handle "
              "FROM complaints WHERE ts>=?")
         args: list = [since]
         if model: q += " AND model=?"; args.append(model)

@@ -15,6 +15,9 @@ from barometer.review_app import (
 from barometer.reviews import (
     ReviewError, ReviewStore, validate_review_decision,
 )
+from barometer.sampling_controls import (
+    SamplingControlError, SamplingControlStore,
+)
 
 
 LOCAL_HOSTS = frozenset(("127.0.0.1", "localhost", "::1"))
@@ -24,9 +27,14 @@ MAX_REVIEW_BODY = 65536
 class ReviewServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, address, handler, source_db: str, review_db: str):
+    def __init__(
+            self, address, handler, source_db: str, review_db: str,
+            controls_db: str | None = None):
         self.source_db = str(Path(source_db).resolve())
         self.review_db = str(Path(review_db).resolve())
+        self.controls_db = str(Path(
+            controls_db or Path(self.review_db).parent / "sampling_controls.db"
+        ).resolve())
         self.review_token = secrets.token_urlsafe(32)
         Path(self.review_db).parent.mkdir(parents=True, exist_ok=True)
         super().__init__(address, handler)
@@ -76,6 +84,19 @@ class ReviewHandler(BaseHTTPRequestHandler):
             and parsed.netloc == self.headers.get("Host")
         )
 
+    def _review_items(self) -> list[dict]:
+        items = build_review_items(
+            self.server.source_db, self.server.review_db)
+        with SamplingControlStore(self.server.controls_db) as controls:
+            active = {
+                (item.source, item.author_id): item.as_dict()
+                for item in controls.all() if item.active
+            }
+        for item in items:
+            item["source_suppression"] = active.get(
+                (item["source"], item.get("author_id")))
+        return items
+
     def do_GET(self) -> None:
         path = urlsplit(self.path).path
         try:
@@ -88,8 +109,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 return
             if path == "/api/bootstrap":
                 self._json(200, {
-                    "items": build_review_items(
-                        self.server.source_db, self.server.review_db),
+                    "items": self._review_items(),
                     "meta": review_metadata(),
                 })
                 return
@@ -101,7 +121,9 @@ class ReviewHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         prefix = "/api/reviews/"
         path = urlsplit(self.path).path
-        if not path.startswith(prefix) or len(path) == len(prefix):
+        is_review = path.startswith(prefix) and len(path) > len(prefix)
+        is_suppression = path == "/api/source-suppressions"
+        if not is_review and not is_suppression:
             self._json(404, {"error": "not found"})
             return
         if not self._origin_is_same_host():
@@ -122,13 +144,43 @@ class ReviewHandler(BaseHTTPRequestHandler):
         if length <= 0 or length > MAX_REVIEW_BODY:
             self._json(413, {"error": "review is empty or too large"})
             return
-        unit_id = unquote(path[len(prefix):])
         try:
             payload = json.loads(self.rfile.read(length))
+            items_list = self._review_items()
+            if is_suppression:
+                report_id = str(payload.get("report_id") or "")
+                current_item = next(
+                    (item for item in items_list
+                     if item["report_id"] == report_id),
+                    None,
+                )
+                if current_item is None:
+                    self._json(404, {"error": "source report no longer exists"})
+                    return
+                if (payload.get("source_fingerprint")
+                        != current_item["source_fingerprint"]):
+                    self._json(409, {
+                        "error": "source report changed; reload before updating",
+                    })
+                    return
+                if not current_item.get("author_id"):
+                    self._json(400, {
+                        "error": "this retained report has no source account metadata",
+                    })
+                    return
+                with SamplingControlStore(self.server.controls_db) as controls:
+                    suppression = controls.set_source_suppression(
+                        current_item["source"], current_item["author_id"],
+                        current_item.get("author_handle"),
+                        payload.get("reason"), active=payload.get("active"),
+                    )
+                self._json(200, {"suppression": suppression.as_dict()})
+                return
+
+            unit_id = unquote(path[len(prefix):])
             items = {
                 item["review_unit_id"]: item
-                for item in build_review_items(
-                    self.server.source_db, self.server.review_db)
+                for item in items_list
             }
             current_item = items.get(unit_id)
             if current_item is None:
@@ -148,7 +200,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             self._json(400, {"error": "request body is not valid JSON"})
             return
-        except (ReviewError, ValueError) as exc:
+        except (ReviewError, SamplingControlError, ValueError) as exc:
             self._json(400, {"error": str(exc)})
             return
         self._json(200, {"decision": saved})
@@ -161,6 +213,9 @@ def parse_args(argv=None):
     parser.add_argument("--source-db", default="barometer.db")
     parser.add_argument(
         "--review-db", default="observation/private/classifier_reviews.db")
+    parser.add_argument(
+        "--controls-db",
+        help="private reversible source-suppression ledger")
     return parser.parse_args(argv)
 
 
@@ -171,7 +226,8 @@ def main(argv=None) -> None:
     if not Path(args.source_db).is_file():
         raise SystemExit(f"source database does not exist: {args.source_db}")
     server = ReviewServer(
-        (args.host, args.port), ReviewHandler, args.source_db, args.review_db)
+        (args.host, args.port), ReviewHandler, args.source_db, args.review_db,
+        args.controls_db)
     print(f"Classifier review available at http://{args.host}:{args.port}/")
     try:
         server.serve_forever()

@@ -21,6 +21,7 @@ from barometer.catalog import infer_variant
 from barometer.cli import tick
 from barometer.dashboard import _category_cloud, render_landing
 from barometer.detect import Complaint, ProviderEvent
+from barometer.sampling_controls import SourceSuppression
 
 NOW = 1_781_300_000.0
 
@@ -291,6 +292,52 @@ class AdapterTests(unittest.TestCase):
                 self.assertEqual(
                     adapter.collection_batches[0].run.retained_candidates, 1)
 
+    def test_x_captures_authors_and_suppresses_them_before_retention(self):
+        with tempfile.TemporaryDirectory() as directory:
+            captured = {}
+
+            def transport(url, _token):
+                captured.update(parse_qs(urlparse(url).query))
+                return {
+                    "data": [
+                        {
+                            **X_POSTS["gpt"],
+                            "author_id": "blocked-id",
+                        },
+                        {
+                            **X_POSTS["gpt"],
+                            "id": "1900000000000000999",
+                            "author_id": "kept-id",
+                            "text": "GPT-5.6 is unusually thorough today.",
+                        },
+                    ],
+                    "includes": {"users": [
+                        {"id": "blocked-id", "username": "course_bot"},
+                        {"id": "kept-id", "username": "useful_human"},
+                    ]},
+                }
+
+            suppression = SourceSuppression(
+                "x", "blocked-id", "course_bot", "marketing", True,
+                100.0, 100.0)
+            with Store(os.path.join(directory, "candidate.db")) as store:
+                adapter = XAdapter(
+                    store, "test-token",
+                    queries={"gpt": '"GPT-5.6" lang:en -is:retweet'},
+                    daily_read_limit=10, per_query_limit=10,
+                    retain_filter=lambda _text: True,
+                    suppressed_authors=[suppression], transport=transport,
+                    clock=lambda: NOW,
+                )
+                reports = adapter.fetch(NOW - 86400)
+                self.assertEqual(len(reports), 1)
+                self.assertEqual(reports[0].author_id, "kept-id")
+                self.assertEqual(reports[0].author_handle, "useful_human")
+                self.assertIn("-from:course_bot", captured["query"][0])
+                self.assertEqual(captured["expansions"], ["author_id"])
+                self.assertIn("author_id", captured["tweet.fields"][0])
+                self.assertEqual(adapter.usage_report()["suppressed_candidates"], 1)
+
     def test_x_ambiguous_failure_consumes_reserved_allowance(self):
         with tempfile.TemporaryDirectory() as d:
             calls = {"count": 0}
@@ -331,6 +378,8 @@ class StoreTests(unittest.TestCase):
                     for row in store.db.execute("PRAGMA table_info(complaints)")
                 }
             self.assertIn("variant", columns)
+            self.assertIn("author_id", columns)
+            self.assertIn("author_handle", columns)
 
     def test_dedup_on_reingest(self):
         with tempfile.TemporaryDirectory() as d:
@@ -430,6 +479,8 @@ class TickTests(unittest.TestCase):
                     "claude",
                     "Claude quality dropped SECRET_RAW_WORDS",
                     "https://news.ycombinator.com/item?id=private-test",
+                    author_id="SECRET_AUTHOR_ID",
+                    author_handle="SECRET_AUTHOR_HANDLE",
                 )])
                 tick(
                     store,
@@ -466,6 +517,8 @@ class TickTests(unittest.TestCase):
                 public_text = handle.read()
             self.assertNotIn("SECRET_RAW_WORDS", public_text)
             self.assertNotIn("private-test", public_text)
+            self.assertNotIn("SECRET_AUTHOR_ID", public_text)
+            self.assertNotIn("SECRET_AUTHOR_HANDLE", public_text)
             payload = json.loads(public_text)
             self.assertEqual(payload["models"]["claude"]["reports"], 1)
             self.assertEqual(payload["models"]["claude"]["lab"], "Anthropic")
@@ -492,12 +545,16 @@ class TickTests(unittest.TestCase):
                 public_history = handle.read()
             self.assertNotIn("SECRET_RAW_WORDS", public_history)
             self.assertNotIn("private-test", public_history)
+            self.assertNotIn("SECRET_AUTHOR_ID", public_history)
+            self.assertNotIn("SECRET_AUTHOR_HANDLE", public_history)
             self.assertEqual(len(json.loads(public_history)["samples"]), 2)
             with open(os.path.join(d, "public", "barometer_claude.html"),
                       encoding="utf-8") as handle:
                 public_html = handle.read()
             self.assertNotIn("SECRET_RAW_WORDS", public_html)
             self.assertNotIn("private-test", public_html)
+            self.assertNotIn("SECRET_AUTHOR_ID", public_html)
+            self.assertNotIn("SECRET_AUTHOR_HANDLE", public_html)
             self.assertIn('"name":"HN","count":1', public_html)
             self.assertIn('"default_window":"21d"', public_html)
             self.assertIn('data-window="21d"', public_html)
@@ -511,6 +568,8 @@ class TickTests(unittest.TestCase):
                 landing_html = handle.read()
             self.assertNotIn("SECRET_RAW_WORDS", landing_html)
             self.assertNotIn("private-test", landing_html)
+            self.assertNotIn("SECRET_AUTHOR_ID", landing_html)
+            self.assertNotIn("SECRET_AUTHOR_HANDLE", landing_html)
             self.assertIn("Most reported models right now", landing_html)
             self.assertIn("Search exact models or labs", landing_html)
             self.assertIn('data-display-window="now"', landing_html)
@@ -521,6 +580,8 @@ class TickTests(unittest.TestCase):
                 report_form = handle.read()
             self.assertNotIn("SECRET_RAW_WORDS", report_form)
             self.assertNotIn("private-test", report_form)
+            self.assertNotIn("SECRET_AUTHOR_ID", report_form)
+            self.assertNotIn("SECRET_AUTHOR_HANDLE", report_form)
             self.assertIn("Private moderation boundary", report_form)
             self.assertIn('name="model_name"', report_form)
             self.assertIn("URLSearchParams(location.search)", report_form)

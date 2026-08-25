@@ -353,6 +353,17 @@ def _x_seed_url(post: dict) -> str | None:
     return None
 
 
+def _x_query_with_suppressed_handles(
+        query: str, handles: tuple[str, ...]) -> str:
+    """Apply as many reversible author exclusions as the X query cap permits."""
+    result = query
+    for handle in sorted(set(handles), key=str.casefold):
+        candidate = f"{result} -from:{handle}"
+        if len(candidate) <= 512:
+            result = candidate
+    return result
+
+
 class XAdapter:
     """Capped recent-search sampler for X's pay-per-use API.
 
@@ -368,6 +379,7 @@ class XAdapter:
             daily_read_limit: int = 60,
             per_query_limit: int = 20,
             retain_filter=looks_like_complaint,
+            suppressed_authors=(),
             transport=x_live_transport,
             clock=time.time):
         if not bearer_token:
@@ -379,6 +391,12 @@ class XAdapter:
         self.store = store
         self.bearer_token = bearer_token
         self.clock = clock
+        suppressed_authors = tuple(suppressed_authors)
+        self.suppressed_author_ids = frozenset(
+            str(item.author_id) for item in suppressed_authors)
+        suppressed_handles = tuple(
+            str(item.handle_snapshot)
+            for item in suppressed_authors if item.handle_snapshot)
         if queries is None:
             self.query_specs = x_default_query_specs(self._day())
         else:
@@ -389,6 +407,13 @@ class XAdapter:
                 )
                 for key, query in queries.items()
             )
+        self.query_specs = tuple(
+            XQuerySpec(
+                spec.query_id, spec.family, spec.lane,
+                _x_query_with_suppressed_handles(spec.query, suppressed_handles),
+            )
+            for spec in self.query_specs
+        )
         self.queries = {
             spec.query_id: spec.query for spec in self.query_specs
         }
@@ -420,6 +445,8 @@ class XAdapter:
             "queries_attempted": 0,
             "candidate_posts": 0,
             "accepted_complaints": 0,
+            "suppressed_candidates": 0,
+            "active_author_suppressions": len(self.suppressed_author_ids),
             "saturated_queries": 0,
             "budget_exhausted": False,
             "query_version": X_QUERY_VERSION,
@@ -443,7 +470,9 @@ class XAdapter:
             params = {
                 "query": spec.query,
                 "max_results": str(request_limit),
-                "tweet.fields": "created_at,entities",
+                "tweet.fields": "created_at,entities,author_id",
+                "expansions": "author_id",
+                "user.fields": "username",
             }
             cursor = self.store.tap_state(self._cursor_key(spec.query_id))
             if cursor:
@@ -505,13 +534,25 @@ class XAdapter:
                 self.store.set_tap_state(
                     self._cursor_key(spec.query_id), str(max(numeric_ids)))
 
+            includes = payload.get("includes") or {}
+            usernames = {
+                str(user.get("id")): str(user.get("username"))
+                for user in (includes.get("users") or [])
+                if user.get("id") and user.get("username")
+            }
+
             query_complaints: list[Complaint] = []
             result_ranks: list[int] = []
             for rank, post in enumerate(posts, start=1):
                 post_id = str(post.get("id", ""))
                 text = _plain_text(str(post.get("text", "")))[:500]
                 created_at = post.get("created_at")
+                author_id = str(post.get("author_id") or "") or None
+                author_handle = usernames.get(author_id) if author_id else None
                 if not post_id or not text or not created_at:
+                    continue
+                if author_id in self.suppressed_author_ids:
+                    self._stats["suppressed_candidates"] += 1
                     continue
                 try:
                     ts = _x_timestamp(str(created_at))
@@ -532,6 +573,8 @@ class XAdapter:
                     url=f"https://x.com/i/web/status/{post_id}",
                     seed_url=_x_seed_url(post),
                     variant=infer_variant(routed_model, text),
+                    author_id=author_id,
+                    author_handle=author_handle,
                 )
                 query_complaints.append(complaint)
                 result_ranks.append(rank)

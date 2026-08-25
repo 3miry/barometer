@@ -8,6 +8,7 @@ from barometer.adapters import HNAdapter, RedditAdapter, XAdapter
 from barometer.canary import CanaryRunner
 from barometer.cli import tick
 from barometer.public import write_run_status
+from barometer.sampling_controls import SamplingControlStore
 from barometer.store import Store
 from barometer.submissions import SubmissionStore
 
@@ -87,6 +88,10 @@ def parse_args(argv=None):
         help=("moderated user-report database; approved structured reports "
               "are included without their free-text descriptions"),
     )
+    parser.add_argument(
+        "--sampling-controls-db",
+        help="private reversible source-suppression ledger",
+    )
     parser.add_argument("--retention-days", type=int,
                         help="delete private raw reports older than this")
     args = parser.parse_args(argv)
@@ -148,6 +153,14 @@ def main(argv=None) -> None:
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     started_at = time.time()
+    suppressed_x_authors = []
+    if args.x:
+        controls_path = (
+            args.sampling_controls_db
+            or str(Path(db_path).parent / "sampling_controls.db")
+        )
+        with SamplingControlStore(controls_path) as controls:
+            suppressed_x_authors = controls.active("x")
     try:
         with Store(db_path) as store:
             adapters = []
@@ -165,6 +178,7 @@ def main(argv=None) -> None:
                     store,
                     bearer_token=os.environ["X_BEARER_TOKEN"],
                     daily_read_limit=args.x_daily_read_limit,
+                    suppressed_authors=suppressed_x_authors,
                 ))
             runner = None
             if args.openai_canary:

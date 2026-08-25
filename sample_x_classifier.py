@@ -12,6 +12,7 @@ from pathlib import Path
 import time
 
 from barometer.adapters import XAdapter
+from barometer.sampling_controls import SamplingControlStore
 from barometer.store import Store
 
 
@@ -21,6 +22,9 @@ def parse_args(argv=None):
         "--db", default="observation/private/x_classifier_candidates.db")
     parser.add_argument("--daily-read-limit", type=int, default=60)
     parser.add_argument("--window-days", type=int, default=7)
+    parser.add_argument(
+        "--controls-db",
+        default="observation/private/sampling_controls.db")
     args = parser.parse_args(argv)
     if args.daily_read_limit < 10:
         parser.error("--daily-read-limit must be at least 10")
@@ -36,12 +40,15 @@ def main(argv=None) -> None:
     path = Path(args.db)
     path.parent.mkdir(parents=True, exist_ok=True)
     now = time.time()
+    with SamplingControlStore(args.controls_db) as controls:
+        suppressed_authors = controls.active("x")
     with Store(str(path)) as store:
         adapter = XAdapter(
             store,
             os.environ["X_BEARER_TOKEN"],
             daily_read_limit=args.daily_read_limit,
             retain_filter=lambda _text: True,
+            suppressed_authors=suppressed_authors,
         )
         candidates = adapter.fetch(now - args.window_days * 86400)
         new_candidates = 0

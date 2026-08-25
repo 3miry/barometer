@@ -47,6 +47,9 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
   structured reviewer decisions are kept in a separate ignored database.
   Comparative reports become linked per-model slices so opposing directions or
   valences are coded independently without multiplying source provenance.
+- `barometer/sampling_controls.py` — private reversible source suppression.
+  X author IDs and handle snapshots remain private; review actions affect only
+  future sampling, retain an audit record, and never delete the reviewed post.
 - `barometer/probes.py` and `barometer/data/probe_registry.ledger.json` —
   offline-only collection-run provenance and an append-only probe lifecycle.
   The registry starts empty and cannot activate collection.

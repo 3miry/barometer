@@ -15,6 +15,7 @@ from barometer.reviews import (
     validate_review_decision,
 )
 from barometer.store import SCHEMA
+from barometer.sampling_controls import SamplingControlStore
 from barometer.vocabulary import concepts_by_id
 from review_classifier import ReviewHandler, ReviewServer
 
@@ -132,6 +133,8 @@ class ReviewStorageTests(unittest.TestCase):
         self.assertNotIn("key==='d'", page)
         self.assertIn("reclassify", page)
         self.assertIn("data-replace", page)
+        self.assertIn("Suppress future posts", page)
+        self.assertIn("affects future collection only", page)
 
     def test_build_is_read_only_and_review_db_contains_no_raw_text(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -289,6 +292,13 @@ class ReviewServerTests(unittest.TestCase):
         self.source = Path(self.temp.name) / "source.db"
         self.review = Path(self.temp.name) / "private" / "reviews.db"
         make_source(self.source)
+        connection = sqlite3.connect(self.source)
+        connection.execute(
+            "UPDATE complaints SET author_id=?,author_handle=? WHERE id=?",
+            ("12345", "course_bot", "report-one"),
+        )
+        connection.commit()
+        connection.close()
         self.server = ReviewServer(
             ("127.0.0.1", 0), ReviewHandler,
             str(self.source), str(self.review),
@@ -367,6 +377,40 @@ class ReviewServerTests(unittest.TestCase):
             },
         )
         self.assertEqual(status, 409)
+
+    def test_source_suppression_is_bound_to_retained_author_and_reversible(self):
+        status, _, body = self.request("GET", "/api/bootstrap")
+        self.assertEqual(status, 200)
+        item = next(
+            item for item in json.loads(body)["items"]
+            if item["report_id"] == "report-one")
+        self.assertEqual(item["author_handle"], "course_bot")
+        self.assertIsNone(item["source_suppression"])
+        headers = {
+            "Content-Type": "application/json",
+            "X-Review-Token": self.server.review_token,
+            "Origin": f"http://127.0.0.1:{self.port}",
+        }
+        payload = {
+            "report_id": item["report_id"],
+            "source_fingerprint": item["source_fingerprint"],
+            "active": True,
+            "reason": "marketing",
+        }
+        status, _, body = self.request(
+            "POST", "/api/source-suppressions", json.dumps(payload), headers)
+        self.assertEqual(status, 200, body)
+        self.assertTrue(json.loads(body)["suppression"]["active"])
+        with SamplingControlStore(self.server.controls_db) as controls:
+            self.assertEqual(controls.active("x")[0].author_id, "12345")
+
+        payload["active"] = False
+        status, _, body = self.request(
+            "POST", "/api/source-suppressions", json.dumps(payload), headers)
+        self.assertEqual(status, 200, body)
+        self.assertFalse(json.loads(body)["suppression"]["active"])
+        with SamplingControlStore(self.server.controls_db) as controls:
+            self.assertEqual(controls.active("x"), [])
 
 
 if __name__ == "__main__":
