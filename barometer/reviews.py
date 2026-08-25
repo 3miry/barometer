@@ -14,6 +14,7 @@ import time
 
 from .catalog import MODEL_CATALOG
 from .classifier import CLASSIFIER_VERSION
+from .search_terms import SearchTermError, normalise_search_phrase
 from .vocabulary import (
     CodedObservation,
     concepts_by_id,
@@ -27,6 +28,7 @@ ALLOWED_REVIEW_STATUSES = frozenset((
 MAX_REVIEW_NOTE = 600
 MAX_NOVELTY_CANDIDATES = 20
 MAX_NOVELTY_LABEL = 80
+MAX_SEARCH_TERM_CANDIDATES = 12
 
 
 class ReviewError(ValueError):
@@ -43,6 +45,7 @@ class ReviewDecision:
     target_family: str | None
     target_variant: str | None
     observations: tuple[CodedObservation, ...]
+    search_term_candidates: tuple[dict, ...]
     novelty_candidates: tuple[str, ...]
     review_note: str | None
     reviewed_at: float
@@ -58,6 +61,7 @@ CREATE TABLE IF NOT EXISTS classifier_review_units(
   target_family TEXT,
   target_variant TEXT,
   observations_json TEXT NOT NULL,
+  search_terms_json TEXT NOT NULL DEFAULT '[]',
   novelty_json TEXT NOT NULL,
   review_note TEXT,
   reviewed_at REAL NOT NULL);
@@ -147,6 +151,30 @@ def validate_review_decision(
             "superseded observations must be replaced before saving")
     if any(item.claim_status != "reported" for item in observations):
         raise ReviewError("human coding cannot promote causal claim status")
+    search_terms_raw = payload.get("search_term_candidates", [])
+    if not isinstance(search_terms_raw, list):
+        raise ReviewError("search_term_candidates must be a list")
+    if len(search_terms_raw) > MAX_SEARCH_TERM_CANDIDATES:
+        raise ReviewError("too many search term candidates")
+    observation_ids = {item.concept_id for item in observations}
+    search_terms = []
+    for item in search_terms_raw:
+        if not isinstance(item, dict):
+            raise ReviewError("search term candidate must be an object")
+        concept_id = item.get("concept_id")
+        if concept_id not in observation_ids:
+            raise ReviewError(
+                "search term candidate must link to a selected observation")
+        try:
+            phrase = normalise_search_phrase(item.get("phrase"))
+        except SearchTermError as exc:
+            raise ReviewError(str(exc)) from exc
+        search_terms.append({"phrase": phrase, "concept_id": concept_id})
+    signatures = {
+        (item["phrase"], item["concept_id"]) for item in search_terms
+    }
+    if len(signatures) != len(search_terms):
+        raise ReviewError("search term candidates contain duplicates")
     novelty_raw = payload.get("novelty_candidates", [])
     if not isinstance(novelty_raw, list):
         raise ReviewError("novelty_candidates must be a list")
@@ -160,9 +188,10 @@ def validate_review_decision(
         raise ReviewError("novelty candidates cannot be empty")
     if len({item.casefold() for item in novelty}) != len(novelty):
         raise ReviewError("novelty candidates contain duplicates")
-    if status == "rejected" and (observations or novelty):
+    if status == "rejected" and (observations or search_terms or novelty):
         raise ReviewError(
-            "rejected target slices cannot retain observations or novelty")
+            "rejected target slices cannot retain observations, search terms, "
+            "or novelty")
     note = _clean_text(payload.get("review_note"), "review_note", MAX_REVIEW_NOTE)
     return ReviewDecision(
         unit_id=unit_id,
@@ -173,6 +202,7 @@ def validate_review_decision(
         target_family=family or None,
         target_variant=variant or None,
         observations=observations,
+        search_term_candidates=tuple(search_terms),
         novelty_candidates=novelty,
         review_note=note or None,
         reviewed_at=now if now is not None else time.time(),
@@ -189,6 +219,8 @@ def _observation_json(observation: CodedObservation) -> dict:
 def _stored_row(row: sqlite3.Row) -> dict:
     result = dict(row)
     result["observations"] = json.loads(result.pop("observations_json"))
+    result["search_term_candidates"] = json.loads(
+        result.pop("search_terms_json", "[]"))
     result["novelty_candidates"] = json.loads(result.pop("novelty_json"))
     return result
 
@@ -209,10 +241,18 @@ def load_review_decisions_read_only(path: str | Path) -> dict[str, dict]:
         ).fetchone()
         if table is None:
             raise ReviewError("review database has no current review-unit table")
+        columns = {
+            row[1] for row in connection.execute(
+                "PRAGMA table_info(classifier_review_units)")
+        }
+        search_terms = (
+            "search_terms_json" if "search_terms_json" in columns
+            else "'[]' AS search_terms_json"
+        )
         rows = connection.execute(
             "SELECT unit_id,source_report_id,source_fingerprint,"
             "classifier_version,status,target_family,target_variant,"
-            "observations_json,novelty_json,review_note,reviewed_at "
+            f"observations_json,{search_terms},novelty_json,review_note,reviewed_at "
             "FROM classifier_review_units ORDER BY reviewed_at"
         ).fetchall()
         return {row["unit_id"]: _stored_row(row) for row in rows}
@@ -225,6 +265,14 @@ class ReviewStore:
         self.db = sqlite3.connect(path)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(REVIEW_SCHEMA)
+        columns = {
+            row[1] for row in self.db.execute(
+                "PRAGMA table_info(classifier_review_units)")
+        }
+        if "search_terms_json" not in columns:
+            self.db.execute(
+                "ALTER TABLE classifier_review_units ADD COLUMN "
+                "search_terms_json TEXT NOT NULL DEFAULT '[]'")
         self._migrate_legacy_reviews()
 
     def _migrate_legacy_reviews(self) -> None:
@@ -258,13 +306,13 @@ class ReviewStore:
                 "INSERT OR IGNORE INTO classifier_review_units("
                 "unit_id,source_report_id,source_fingerprint,classifier_version,"
                 "status,target_family,target_variant,observations_json,"
-                "novelty_json,review_note,reviewed_at) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                "search_terms_json,novelty_json,review_note,reviewed_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     unit_id, row["report_id"], row["source_fingerprint"],
                     row["classifier_version"], row["status"],
                     row["target_family"], row["target_variant"],
-                    row["observations_json"], row["novelty_json"],
+                    row["observations_json"], "[]", row["novelty_json"],
                     row["review_note"], row["reviewed_at"],
                 ),
             )
@@ -291,11 +339,16 @@ class ReviewStore:
             decision.novelty_candidates,
             separators=(",", ":"),
         )
+        search_terms_json = json.dumps(
+            decision.search_term_candidates,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
         self.db.execute(
             "INSERT INTO classifier_review_units("
             "unit_id,source_report_id,source_fingerprint,classifier_version,status,"
-            "target_family,target_variant,observations_json,novelty_json,"
-            "review_note,reviewed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?) "
+            "target_family,target_variant,observations_json,search_terms_json,"
+            "novelty_json,review_note,reviewed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT(unit_id) DO UPDATE SET "
             "source_report_id=excluded.source_report_id,"
             "source_fingerprint=excluded.source_fingerprint,"
@@ -303,6 +356,7 @@ class ReviewStore:
             "status=excluded.status,target_family=excluded.target_family,"
             "target_variant=excluded.target_variant,"
             "observations_json=excluded.observations_json,"
+            "search_terms_json=excluded.search_terms_json,"
             "novelty_json=excluded.novelty_json,"
             "review_note=excluded.review_note,reviewed_at=excluded.reviewed_at",
             (
@@ -314,6 +368,7 @@ class ReviewStore:
                 decision.target_family,
                 decision.target_variant,
                 observations_json,
+                search_terms_json,
                 novelty_json,
                 decision.review_note,
                 decision.reviewed_at,
@@ -325,7 +380,7 @@ class ReviewStore:
         row = self.db.execute(
             "SELECT unit_id,source_report_id,source_fingerprint,"
             "classifier_version,status,"
-            "target_family,target_variant,observations_json,novelty_json,"
+            "target_family,target_variant,observations_json,search_terms_json,novelty_json,"
             "review_note,reviewed_at FROM classifier_review_units WHERE unit_id=?",
             (unit_id,),
         ).fetchone()

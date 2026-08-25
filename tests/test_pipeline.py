@@ -14,7 +14,7 @@ import run_barometer
 from barometer.store import Store
 from barometer.adapters import (
     RedditAdapter, HNAdapter, XAdapter, reddit_token_transport, route_model,
-    x_default_query_specs,
+    x_default_query_specs, x_targeted_query_specs,
 )
 from barometer.canary import CanaryRunner, BudgetRefusal, CANARY_TEXT
 from barometer.catalog import infer_variant
@@ -22,6 +22,7 @@ from barometer.cli import tick
 from barometer.dashboard import _category_cloud, render_landing
 from barometer.detect import Complaint, ProviderEvent
 from barometer.sampling_controls import SourceSuppression
+from barometer.search_terms import pilot_search_terms
 
 NOW = 1_781_300_000.0
 
@@ -229,12 +230,25 @@ class AdapterTests(unittest.TestCase):
                 self.assertEqual(usage["accepted_complaints"], 3)
                 self.assertEqual(usage["estimated_cost_usd_upper_bound"], 0.03)
                 self.assertEqual(usage["planned_queries"], 6)
-                self.assertEqual(usage["planned_temporal_queries"], 4)
+                self.assertEqual(usage["planned_targeted_queries"], 2)
+                self.assertEqual(usage["planned_discovery_queries"], 4)
                 self.assertEqual(len(adapter.collection_batches), 6)
                 self.assertEqual(
                     [batch.run.lane for batch in adapter.collection_batches],
-                    ["targeted"] * 4 + ["discovery"] * 2,
+                    ["discovery"] * 4 + ["targeted"] * 2,
                 )
+                expected_start = "2026-06-12T00:00:00Z"
+                expected_end = datetime.fromtimestamp(
+                    NOW - 10, tz=timezone.utc
+                ).isoformat().replace("+00:00", "Z")
+                self.assertTrue(all(
+                    params["start_time"] == [expected_start]
+                    for params in calls
+                ))
+                self.assertTrue(all(
+                    params["end_time"] == [expected_end]
+                    for params in calls
+                ))
 
                 # Cursors suppress old posts. Empty successful responses refund
                 # their reservation, so the conservative daily ledger stays put.
@@ -243,7 +257,7 @@ class AdapterTests(unittest.TestCase):
                 self.assertTrue(all("since_id" in p for p in calls[6:]))
                 self.assertTrue(all(p["max_results"] == ["10"] for p in calls))
 
-    def test_x_default_queries_prioritise_temporal_and_rotate_discovery(self):
+    def test_x_default_queries_keep_temporal_optional_and_rotate_depth(self):
         first = x_default_query_specs("2026-06-12")
         second = x_default_query_specs("2026-06-13")
         self.assertEqual(len(first), 6)
@@ -253,12 +267,13 @@ class AdapterTests(unittest.TestCase):
             {"claude", "gpt", "gemini", "grok"},
         )
         self.assertNotEqual(
-            {item.query_id for item in first[4:]},
-            {item.query_id for item in second[4:]},
+            {item.family for item in first[4:]},
+            {item.family for item in second[4:]},
         )
-        self.assertEqual({item.lane for item in first[:4]}, {"targeted"})
-        self.assertEqual({item.lane for item in first[4:]}, {"discovery"})
-        self.assertTrue(all("today" in item.query for item in first[:4]))
+        self.assertEqual({item.lane for item in first[:4]}, {"discovery"})
+        self.assertEqual({item.lane for item in first[4:]}, {"targeted"})
+        self.assertTrue(all('"today"' not in item.query for item in first[:4]))
+        self.assertTrue(all('"today"' in item.query for item in first[4:]))
         self.assertTrue(all(len(item.query) <= 512 for item in first + second))
         combined = " ".join(item.query for item in first + second).lower()
         for excluded in (
@@ -275,14 +290,56 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(len(reduced), 3)
         self.assertEqual(
             [item.lane for item in reduced],
-            ["targeted", "targeted", "discovery"],
+            ["discovery", "discovery", "targeted"],
         )
         minimal_mixed = x_default_query_specs(
             "2026-06-12", daily_read_limit=20)
         self.assertEqual(
             [item.lane for item in minimal_mixed],
-            ["targeted", "discovery"],
+            ["discovery", "targeted"],
         )
+        self.assertEqual(minimal_mixed[0].family, minimal_mixed[1].family)
+
+    def test_x_pilot_terms_join_temporal_depth_but_not_broad_discovery(self):
+        terms = pilot_search_terms()
+        specs = x_default_query_specs(
+            "2026-06-12", daily_read_limit=80, search_terms=terms)
+        self.assertEqual(
+            [item.lane for item in specs],
+            ["discovery"] * 4 + ["targeted"] * 4,
+        )
+        self.assertEqual({item.family for item in specs[:4]},
+                         {"claude", "gpt", "gemini", "grok"})
+        self.assertTrue(all(not item.term_ids for item in specs[:4]))
+        self.assertTrue(all(len(item.term_ids) == 5 for item in specs[4:]))
+        for item in specs[4:]:
+            for phrase in ("slow", "fast", "nerfed", "upgraded", "lazy"):
+                self.assertIn(f'"{phrase}"', item.query)
+            self.assertIn('"today"', item.query)
+            self.assertLessEqual(len(item.query), 512)
+        self.assertTrue(all('"today"' not in item.query for item in specs[:4]))
+
+    def test_x_content_exclusions_are_explicit_and_reversible_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            captured = {}
+            with Store(os.path.join(directory, "candidate.db")) as store:
+                adapter = XAdapter(
+                    store, "test-token",
+                    queries={"gpt": '"GPT-5.6" lang:en -is:retweet'},
+                    daily_read_limit=10, per_query_limit=10,
+                    excluded_phrases=("best", "course offer"),
+                    retain_filter=lambda _text: True,
+                    transport=lambda url, _token: (
+                        captured.update(parse_qs(urlparse(url).query)) or
+                        {"data": []}),
+                    clock=lambda: NOW,
+                )
+                adapter.fetch(NOW - 86400)
+                usage = adapter.usage_report()
+        self.assertIn("-best", captured["query"][0])
+        self.assertIn('-"course offer"', captured["query"][0])
+        self.assertNotIn("-compare", captured["query"][0])
+        self.assertEqual(usage["active_query_exclusions"], 2)
 
     def test_x_private_candidate_mode_retains_chatter_for_review(self):
         with tempfile.TemporaryDirectory() as directory:

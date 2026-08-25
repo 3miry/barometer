@@ -11,6 +11,7 @@ from barometer.cli import tick
 from barometer.public import write_run_status
 from barometer.reviewed_observations import load_reviewed_observations
 from barometer.sampling_controls import SamplingControlStore
+from barometer.search_terms import pilot_search_terms
 from barometer.store import Store
 from barometer.submissions import SubmissionStore
 
@@ -185,6 +186,7 @@ def main(argv=None) -> None:
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     started_at = time.time()
     suppressed_x_authors = []
+    excluded_x_phrases = []
     if args.x:
         controls_path = (
             args.sampling_controls_db
@@ -192,6 +194,10 @@ def main(argv=None) -> None:
         )
         with SamplingControlStore(controls_path) as controls:
             suppressed_x_authors = controls.active("x")
+            excluded_x_phrases = [
+                item.phrase
+                for item in controls.active_query_exclusions("x")
+            ]
     try:
         with Store(db_path) as store:
             adapters = []
@@ -209,6 +215,8 @@ def main(argv=None) -> None:
                     store,
                     bearer_token=os.environ["X_BEARER_TOKEN"],
                     daily_read_limit=args.x_daily_read_limit,
+                    search_terms=pilot_search_terms(),
+                    excluded_phrases=excluded_x_phrases,
                     suppressed_authors=suppressed_x_authors,
                 ))
             runner = None

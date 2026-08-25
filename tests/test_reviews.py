@@ -118,6 +118,43 @@ class ReviewValidationTests(unittest.TestCase):
                 },
             )
 
+    def test_search_term_candidate_must_be_safe_and_linked_to_coding(self):
+        payload = {
+            "status": "corrected",
+            "target_family": "claude",
+            "target_variant": "claude-opus-5",
+            "observations": [observation("beh_0038")],
+            "search_term_candidates": [
+                {"phrase": "Nerfed", "concept_id": "beh_0038"},
+            ],
+            "novelty_candidates": [],
+            "review_note": "",
+        }
+        decision = validate_review_decision(
+            "one::claude", "one", "hash", payload)
+        self.assertEqual(
+            decision.search_term_candidates,
+            ({"phrase": "nerfed", "concept_id": "beh_0038"},),
+        )
+        with self.assertRaisesRegex(ReviewError, "selected observation"):
+            validate_review_decision(
+                "one::claude", "one", "hash", {
+                    **payload,
+                    "search_term_candidates": [
+                        {"phrase": "slow", "concept_id": "beh_0001"},
+                    ],
+                },
+            )
+        with self.assertRaisesRegex(ReviewError, "unsafe query syntax"):
+            validate_review_decision(
+                "one::claude", "one", "hash", {
+                    **payload,
+                    "search_term_candidates": [
+                        {"phrase": "nerfed) OR hacked", "concept_id": "beh_0038"},
+                    ],
+                },
+            )
+
 
 class ReviewStorageTests(unittest.TestCase):
     def test_review_page_groups_comparisons_and_keeps_actions_click_only(self):
@@ -139,6 +176,9 @@ class ReviewStorageTests(unittest.TestCase):
         self.assertIn("Temporal only", page)
         self.assertIn("behaviour_report:40", page)
         self.assertIn("temporal_priority.score", page)
+        self.assertIn("Search dictionary candidates", page)
+        self.assertIn("cannot activate paid searches", page)
+        self.assertIn("search_term_candidates", page)
 
     def test_build_is_read_only_and_review_db_contains_no_raw_text(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -180,6 +220,9 @@ class ReviewStorageTests(unittest.TestCase):
                     "target_family": "claude",
                     "target_variant": "claude-opus-5",
                     "observations": [observation("beh_0045")],
+                    "search_term_candidates": [
+                        {"phrase": "making mistakes", "concept_id": "beh_0045"},
+                    ],
                     "novelty_candidates": [],
                     "review_note": "sounds right",
                 }, now=123.0,
@@ -188,6 +231,10 @@ class ReviewStorageTests(unittest.TestCase):
                 store.put(decision)
             first = build_review_items(source, review)[0]
             self.assertEqual(first["decision"]["status"], "approved")
+            self.assertEqual(
+                first["decision"]["search_term_candidates"],
+                [{"concept_id": "beh_0045", "phrase": "making mistakes"}],
+            )
             connection = sqlite3.connect(source)
             connection.execute(
                 "UPDATE complaints SET text=? WHERE id='report-one'",

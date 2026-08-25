@@ -13,6 +13,7 @@ import time
 
 from barometer.adapters import XAdapter
 from barometer.sampling_controls import SamplingControlStore
+from barometer.search_terms import pilot_search_terms
 from barometer.store import Store
 from barometer.temporal import temporal_priority
 
@@ -43,12 +44,17 @@ def main(argv=None) -> None:
     now = time.time()
     with SamplingControlStore(args.controls_db) as controls:
         suppressed_authors = controls.active("x")
+        excluded_phrases = [
+            item.phrase for item in controls.active_query_exclusions("x")
+        ]
     with Store(str(path)) as store:
         adapter = XAdapter(
             store,
             os.environ["X_BEARER_TOKEN"],
             daily_read_limit=args.daily_read_limit,
             retain_filter=lambda _text: True,
+            search_terms=pilot_search_terms(),
+            excluded_phrases=excluded_phrases,
             suppressed_authors=suppressed_authors,
         )
         candidates = adapter.fetch(now - args.window_days * 86400)

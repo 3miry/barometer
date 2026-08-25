@@ -51,7 +51,9 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
   completed human decisions into aggregate weather. The default path admits
   only active, publishable concepts and carries no source text, URL, handle,
   note, or identifier across the public boundary.
-- `barometer/sampling_controls.py` — private reversible source suppression.
+- `barometer/sampling_controls.py` — private reversible source and literal-query
+  suppression. No content phrase is excluded by default; comparative wording
+  remains eligible because it can contain directional per-model evidence.
   X author IDs and handle snapshots remain private; review actions affect only
   future sampling, retain an audit record, and never delete the reviewed post.
 - `barometer/temporal.py` — explainable private review priority. Explicit
@@ -60,11 +62,18 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
   received date as day zero. The default review order combines this with the
   classifier's eligibility tier, preventing dated chatter from outranking a
   genuine undated behaviour report; temporal-only and newest views remain.
-- X query plan v4 prioritises temporal language before data is purchased. At
-  the default 60-read ceiling, all four model-family temporal probes run first
-  and two valence-neutral discovery families rotate daily. Smaller budgets keep
-  roughly two thirds of query slots temporal; budgets allowing at least two
-  requests preserve one discovery slot.
+- `barometer/search_terms.py` and
+  `barometer/data/search_term_registry.ledger.json` govern LLT-like vernacular
+  retrieval terms separately from classifier labels. Human review can record
+  exact phrase candidates linked to selected observations, but only terms that
+  pass the append-only proposed → offline-tested → pilot lifecycle enter a
+  query. A match never assigns the concept, valence, or causality.
+- X query plan v5 gives every request an explicit current-UTC-day API frame.
+  Model-only discovery does not require `today` or any behaviour word. An
+  overlapping depth lane searches the same model identities with optional
+  temporal language (`today`, `recently`, and similar) OR governed LLT-like
+  terms. At the default 60-read ceiling all four discovery families run and two
+  depth families rotate; an 80-read pilot covers both lanes for all four.
 - `barometer/probes.py` and `barometer/data/probe_registry.ledger.json` —
   offline-only collection-run provenance and an append-only probe lifecycle.
   The registry starts empty and cannot activate collection.
@@ -102,6 +111,23 @@ python shadow_classifier.py
 Add `--db barometer.db` to inspect retained local rows read-only. A perfect
 development-contract score is not real-world accuracy; the same examples were
 used to design the initial deterministic rules.
+
+Collecting a new X classifier batch is a separate, paid, manual action. It keeps
+chatter as well as apparent reports in an ignored private database so the broad
+lane can discover vocabulary without complaint-word selection bias:
+
+```powershell
+# 60 reads: four discovery families plus two rotating depth families
+python sample_x_classifier.py --daily-read-limit 60
+
+# 80 reads: full discovery + depth pass for all four families
+python sample_x_classifier.py --daily-read-limit 80
+```
+
+Both commands require `X_BEARER_TOKEN`. They search only the current UTC day,
+regardless of whether a returned post literally says `today`. They use current
+pilot terms plus active private author/content exclusions, write no public
+weather, and still require the command to be run explicitly.
 
 Review retained proposals locally without changing the source database or
 public weather:
@@ -247,21 +273,27 @@ environment:
 
 `python run_barometer.py --observe-hn --observe-x`
 
-The default allowance is at most 60 returned posts per UTC day, shared fairly
-across Claude, GPT, Gemini, and Grok queries (currently up to 15 each). At X's
+The default allowance is at most 60 returned posts per UTC day. Query plan v5
+uses four model-only discovery requests plus two rotating temporal/LLT depth
+requests, normally capped at 10 results each. A deliberately raised 80-read
+pilot can cover both lanes for Claude, GPT, Gemini, and Grok. At X's
 published price on 23 August 2026 of $0.005 per post read, that remains an
 estimated upper bound of $0.30/day. Set a lower or higher hard allowance with
 `--x-daily-read-limit`; the X Developer Console spending limit remains the
 authoritative outer guard.
 
-Barometer persists a `since_id` cursor per query and reports candidate posts,
-accepted complaints, saturated queries, and an upper-bound cost in
-`status.json`. A saturated query filled its sample and may have had more matches
-available. Before every request Barometer reserves the maximum possible returned
-posts. A successful response refunds unused allowance; an ambiguous failure
-keeps the reservation spent so automatic retries cannot leak past the daily
-ceiling. The estimate is deliberately conservative because X may deduplicate
-billing within a UTC day.
+Every request also supplies an inclusive `start_time` and exclusive `end_time`
+inside the current UTC day; the word `today` is only an optional retrieval cue,
+never a date filter or admission requirement. Barometer persists a query-hashed
+`since_id` cursor and reports candidate posts, discovery/depth provenance,
+governed term IDs, accepted complaints, saturated queries, and an upper-bound
+cost in `status.json`. If both lanes retrieve the same post, it is stored once
+but retains both query-run provenance records. A saturated query filled its
+sample and may have had more matches available. Before every request Barometer
+reserves the maximum possible returned posts. A successful response refunds
+unused allowance; an ambiguous failure keeps the reservation spent so automatic
+retries cannot leak past the daily ceiling. The estimate is deliberately
+conservative because X may deduplicate billing within a UTC day.
 
 The X trial is not part of the active scheduled task and no credential is stored
 in this repository. Confirm current rates in the

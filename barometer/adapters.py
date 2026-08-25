@@ -7,6 +7,7 @@ from __future__ import annotations
 import base64
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
 import html
 import json
 import re
@@ -17,11 +18,12 @@ import uuid
 from .detect import Complaint
 from .catalog import infer_variant
 from .probes import CollectionRun
+from .search_terms import SearchTermDefinition
 
 USER_AGENT = "the-barometer/0.1 (fleet weather, not verdicts)"
 X_POST_READ_USD = 0.005
 X_RECENT_SEARCH_URL = "https://api.x.com/2/tweets/search/recent"
-X_QUERY_VERSION = 4
+X_QUERY_VERSION = 5
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,8 @@ class XQuerySpec:
     family: str
     lane: str
     query: str
+    term_ids: tuple[str, ...] = ()
+    concept_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -67,42 +71,54 @@ X_MODEL_IDENTITY_QUERIES = (
     ),
 )
 
-X_TEMPORAL_SIGNAL_QUERIES = (
-    XQuerySpec(
-        "x.temporal.model_identity.claude", "claude", "targeted",
-        '("Fable 5" OR "Opus 5" OR "Sonnet 5" OR "Opus 4.8" '
-        'OR "Claude Opus" OR "Claude Sonnet" OR "Claude Fable") '
-        '("today" OR "this morning" OR "tonight" OR "recently" OR '
-        '"lately" OR "suddenly" OR "first time" OR "this week" OR '
-        '"has become" OR "used to" OR "anymore") lang:en -is:retweet',
-    ),
-    XQuerySpec(
-        "x.temporal.model_identity.gpt", "gpt", "targeted",
-        '("GPT-5.5" OR "GPT 5.5" OR "GPT-5.6" OR "GPT 5.6" '
-        'OR "ChatGPT Sol" OR "ChatGPT Luna" OR "ChatGPT Terra" '
-        'OR "5.6 Sol" OR "Sol 5.6" OR "5.6 Luna" OR "Luna 5.6" '
-        'OR "5.6 Terra" OR "Terra 5.6" OR "Codex 5.6") '
-        '("today" OR "this morning" OR "tonight" OR "recently" OR '
-        '"lately" OR "suddenly" OR "first time" OR "this week" OR '
-        '"has become" OR "used to" OR "anymore") lang:en -is:retweet',
-    ),
-    XQuerySpec(
-        "x.temporal.model_identity.gemini", "gemini", "targeted",
-        '("Gemini 3.1 Pro" OR "Gemini Pro 3.1" OR "Gemini Flash 3.5" '
-        'OR "Gemini 3.5 Flash" OR "Gemini Flash-Lite 3.7" '
-        'OR "Gemini 3.7 Flash Lite") '
-        '("today" OR "this morning" OR "tonight" OR "recently" OR '
-        '"lately" OR "suddenly" OR "first time" OR "this week" OR '
-        '"has become" OR "used to" OR "anymore") lang:en -is:retweet',
-    ),
-    XQuerySpec(
-        "x.temporal.model_identity.grok", "grok", "targeted",
-        '("Grok 4.5" OR "Grok-4.5" OR "Grok 4.6" OR "Grok-4.6") '
-        '("today" OR "this morning" OR "tonight" OR "recently" OR '
-        '"lately" OR "suddenly" OR "first time" OR "this week" OR '
-        '"has become" OR "used to" OR "anymore") lang:en -is:retweet',
-    ),
+X_TEMPORAL_PHRASES = (
+    "today", "this morning", "tonight", "recently", "lately", "suddenly",
+    "first time", "this week", "has become", "used to", "anymore",
 )
+
+
+def _quoted_or(phrases) -> str:
+    return "(" + " OR ".join(
+        f'"{phrase}"' for phrase in dict.fromkeys(phrases)) + ")"
+
+
+def x_targeted_query_specs(
+        search_terms: tuple[SearchTermDefinition, ...] = (),
+) -> tuple[XQuerySpec, ...]:
+    """Build the overlapping temporal/LLT lane without making either a gate."""
+    specs = []
+    for identity in X_MODEL_IDENTITY_QUERIES:
+        identity_clause = identity.query.removesuffix(" lang:en -is:retweet")
+        phrases = list(X_TEMPORAL_PHRASES)
+        included_terms = []
+        for term in search_terms:
+            candidate = (
+                f"{identity_clause} {_quoted_or(phrases + [term.phrase])} "
+                "lang:en -is:retweet"
+            )
+            if len(candidate) <= 512:
+                phrases.append(term.phrase)
+                included_terms.append(term)
+        query = (
+            f"{identity_clause} {_quoted_or(phrases)} lang:en -is:retweet"
+        )
+        term_signature = "|".join(
+            f"{term.id}:v{term.definition_version}"
+            for term in included_terms)
+        digest = (
+            hashlib.sha256(term_signature.encode()).hexdigest()[:10]
+            if term_signature else "temporal"
+        )
+        specs.append(XQuerySpec(
+            f"x.targeted.temporal_llt.{identity.family}.{digest}",
+            identity.family,
+            "targeted",
+            query,
+            tuple(term.id for term in included_terms),
+            tuple(dict.fromkeys(
+                term.concept_id for term in included_terms)),
+        ))
+    return tuple(specs)
 
 
 def _rotating_specs(
@@ -114,27 +130,28 @@ def _rotating_specs(
 
 
 def x_default_query_specs(
-        day_utc: str, daily_read_limit: int = 60) -> tuple[XQuerySpec, ...]:
-    """Spend about two thirds of available query slots on temporal probes.
+        day_utc: str, daily_read_limit: int = 60,
+        search_terms: tuple[SearchTermDefinition, ...] = (),
+) -> tuple[XQuerySpec, ...]:
+    """Plan overlapping model-only discovery and temporal/LLT depth pulls.
 
-    X recent search requires at least ten results per request. At the default
-    60-read ceiling this means all four temporal family probes run first, while
-    two neutral discovery families rotate daily for open-vocabulary coverage.
+    At 60 reads, all four broad family frames run and two depth families rotate.
+    At 80 reads, both passes cover all four families. This makes temporal words
+    high-priority retrieval language without requiring them for admission.
     """
     day_number = datetime.fromisoformat(day_utc).date().toordinal()
-    query_slots = max(1, min(6, daily_read_limit // 10))
-    temporal_count = min(
-        len(X_TEMPORAL_SIGNAL_QUERIES),
-        max(1, (query_slots * 2 + 2) // 3),
-    )
-    if query_slots > 1:
-        temporal_count = min(temporal_count, query_slots - 1)
-    discovery_count = query_slots - temporal_count
-    temporal = _rotating_specs(
-        X_TEMPORAL_SIGNAL_QUERIES, temporal_count, day_number % 4)
+    query_slots = max(1, min(8, daily_read_limit // 10))
+    if query_slots == 1:
+        discovery_count, targeted_count = 1, 0
+    else:
+        discovery_count = min(4, max(1, query_slots - 1))
+        targeted_count = min(4, query_slots - discovery_count)
     discovery = _rotating_specs(
-        X_MODEL_IDENTITY_QUERIES, discovery_count, (day_number + 2) % 4)
-    return temporal + discovery
+        X_MODEL_IDENTITY_QUERIES, discovery_count, day_number % 4)
+    targeted = _rotating_specs(
+        x_targeted_query_specs(search_terms), targeted_count,
+        day_number % 4)
+    return discovery + targeted
 
 def live_transport(url: str) -> dict:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
@@ -386,6 +403,18 @@ def _x_query_with_suppressed_handles(
     return result
 
 
+def _x_query_with_excluded_phrases(
+        query: str, phrases: tuple[str, ...]) -> str:
+    """Apply reversible content exclusions without exceeding X's 512 cap."""
+    result = query
+    for phrase in sorted(set(phrases), key=str.casefold):
+        clause = f'-"{phrase}"' if " " in phrase else f"-{phrase}"
+        candidate = f"{result} {clause}"
+        if len(candidate) <= 512:
+            result = candidate
+    return result
+
+
 class XAdapter:
     """Capped recent-search sampler for X's pay-per-use API.
 
@@ -401,6 +430,8 @@ class XAdapter:
             daily_read_limit: int = 60,
             per_query_limit: int = 20,
             retain_filter=looks_like_complaint,
+            search_terms: tuple[SearchTermDefinition, ...] = (),
+            excluded_phrases=(),
             suppressed_authors=(),
             transport=x_live_transport,
             clock=time.time):
@@ -419,9 +450,15 @@ class XAdapter:
         suppressed_handles = tuple(
             str(item.handle_snapshot)
             for item in suppressed_authors if item.handle_snapshot)
+        excluded_phrases = tuple(str(item) for item in excluded_phrases)
+        if any(
+            not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 '\-]{0,59}", phrase)
+            for phrase in excluded_phrases
+        ):
+            raise ValueError("X query exclusions contain unsafe syntax")
         if queries is None:
             self.query_specs = x_default_query_specs(
-                self._day(), daily_read_limit)
+                self._day(), daily_read_limit, search_terms)
         else:
             self.query_specs = tuple(
                 XQuerySpec(
@@ -433,7 +470,11 @@ class XAdapter:
         self.query_specs = tuple(
             XQuerySpec(
                 spec.query_id, spec.family, spec.lane,
-                _x_query_with_suppressed_handles(spec.query, suppressed_handles),
+                _x_query_with_suppressed_handles(
+                    _x_query_with_excluded_phrases(
+                        spec.query, excluded_phrases),
+                    suppressed_handles),
+                spec.term_ids, spec.concept_ids,
             )
             for spec in self.query_specs
         )
@@ -441,6 +482,7 @@ class XAdapter:
             spec.query_id: spec.query for spec in self.query_specs
         }
         self.daily_read_limit = daily_read_limit
+        self.excluded_phrases = excluded_phrases
         fair_share = max(10, daily_read_limit // max(1, len(self.query_specs)))
         self.per_query_limit = min(per_query_limit, fair_share)
         self.retain_filter = retain_filter
@@ -454,13 +496,29 @@ class XAdapter:
             self.clock(), tz=timezone.utc).date().isoformat()
 
     @staticmethod
-    def _cursor_key(query_id: str) -> str:
-        return f"x:recent:v{X_QUERY_VERSION}:{query_id}:since_id"
+    def _cursor_key(spec: XQuerySpec) -> str:
+        query_hash = hashlib.sha256(
+            spec.query.encode("utf-8")).hexdigest()[:12]
+        return (
+            f"x:recent:v{X_QUERY_VERSION}:{spec.query_id}:"
+            f"{query_hash}:since_id")
+
+    def _daily_frame(self, since: float) -> tuple[float, float]:
+        now = self.clock()
+        current = datetime.fromtimestamp(now, tz=timezone.utc)
+        day_start = datetime(
+            current.year, current.month, current.day, tzinfo=timezone.utc,
+        ).timestamp()
+        # X documents end_time as exclusive. Staying ten seconds behind the
+        # clock also avoids asking the recent-search index for its newest edge.
+        return max(float(since), day_start), min(
+            now - 10, day_start + 86400)
 
     def fetch(self, since: float) -> list[Complaint]:
         out: list[Complaint] = []
         seen: set[str] = set()
         day = self._day()
+        frame_start, frame_end = self._daily_frame(since)
         self.errors = []
         self.collection_batches = []
         self._stats = {
@@ -470,14 +528,25 @@ class XAdapter:
             "accepted_complaints": 0,
             "suppressed_candidates": 0,
             "active_author_suppressions": len(self.suppressed_author_ids),
+            "active_query_exclusions": len(self.excluded_phrases),
             "saturated_queries": 0,
             "budget_exhausted": False,
             "query_version": X_QUERY_VERSION,
             "planned_queries": len(self.query_specs),
-            "planned_temporal_queries": sum(
+            "planned_targeted_queries": sum(
                 spec.lane == "targeted" for spec in self.query_specs),
+            "planned_discovery_queries": sum(
+                spec.lane == "discovery" for spec in self.query_specs),
+            "frame_start_utc": datetime.fromtimestamp(
+                frame_start, tz=timezone.utc).isoformat().replace("+00:00", "Z"),
+            "frame_end_utc": datetime.fromtimestamp(
+                frame_end, tz=timezone.utc).isoformat().replace("+00:00", "Z"),
             "query_runs": [],
         }
+
+        if frame_end <= frame_start:
+            self._stats["frame_not_open"] = True
+            return []
 
         for spec in self.query_specs:
             query_started = self.clock()
@@ -499,16 +568,16 @@ class XAdapter:
                 "tweet.fields": "created_at,entities,author_id",
                 "expansions": "author_id",
                 "user.fields": "username",
+                "start_time": datetime.fromtimestamp(
+                    frame_start, tz=timezone.utc
+                ).isoformat().replace("+00:00", "Z"),
+                "end_time": datetime.fromtimestamp(
+                    frame_end, tz=timezone.utc
+                ).isoformat().replace("+00:00", "Z"),
             }
-            cursor = self.store.tap_state(self._cursor_key(spec.query_id))
+            cursor = self.store.tap_state(self._cursor_key(spec))
             if cursor:
                 params["since_id"] = cursor
-            else:
-                # Recent search only covers seven days; stay just inside its
-                # boundary even when the detector's window is longer.
-                earliest = max(since, self.clock() - (7 * 86400 - 300))
-                params["start_time"] = datetime.fromtimestamp(
-                    earliest, tz=timezone.utc).isoformat().replace("+00:00", "Z")
             url = f"{X_RECENT_SEARCH_URL}?{urllib.parse.urlencode(params)}"
 
             self._stats["queries_attempted"] += 1
@@ -558,7 +627,7 @@ class XAdapter:
             ]
             if numeric_ids:
                 self.store.set_tap_state(
-                    self._cursor_key(spec.query_id), str(max(numeric_ids)))
+                    self._cursor_key(spec), str(max(numeric_ids)))
 
             includes = payload.get("includes") or {}
             usernames = {
@@ -589,7 +658,8 @@ class XAdapter:
                 routed_model = route_model(text)
                 if routed_model is None and infer_variant(spec.family, text):
                     routed_model = spec.family
-                if ts < since or not routed_model or not self.retain_filter(text):
+                if (ts < frame_start or ts >= frame_end or not routed_model
+                        or not self.retain_filter(text)):
                     continue
                 complaint = Complaint(
                     ts=ts,
@@ -619,8 +689,9 @@ class XAdapter:
                 cost_units=actual,
                 cost_usd_upper_bound=actual * X_POST_READ_USD,
                 frame_note=(
-                    f"Valence-neutral {spec.lane} model-identity query; X "
-                    "recent search is a ranked frame, not a random platform "
+                    f"Valence-neutral {spec.lane} query within one explicit "
+                    f"UTC-day frame; {len(spec.term_ids)} governed LLT-like "
+                    "term(s); X recent search is ranked, not a random platform "
                     "sample."),
             )
             self.collection_batches.append(XCollectionBatch(
@@ -628,6 +699,8 @@ class XAdapter:
             self._stats["query_runs"].append({
                 "query_id": spec.query_id,
                 "lane": spec.lane,
+                "term_ids": list(spec.term_ids),
+                "concept_ids": list(spec.concept_ids),
                 "returned_candidates": actual,
                 "retained_candidates": len(query_complaints),
                 "saturated": actual == request_limit,

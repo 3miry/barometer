@@ -13,6 +13,7 @@ ALLOWED_SUPPRESSION_REASONS = frozenset((
 ))
 AUTHOR_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 HANDLE = re.compile(r"^[A-Za-z0-9_]{1,64}$")
+QUERY_PHRASE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 '\-]{0,59}$")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS source_suppressions(
@@ -26,6 +27,16 @@ CREATE TABLE IF NOT EXISTS source_suppressions(
   PRIMARY KEY(source, author_id));
 CREATE INDEX IF NOT EXISTS ix_source_suppressions_active
   ON source_suppressions(source, active);
+CREATE TABLE IF NOT EXISTS query_exclusions(
+  source TEXT NOT NULL,
+  phrase TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  active INTEGER NOT NULL,
+  created_at REAL NOT NULL,
+  updated_at REAL NOT NULL,
+  PRIMARY KEY(source, phrase));
+CREATE INDEX IF NOT EXISTS ix_query_exclusions_active
+  ON query_exclusions(source, active);
 """
 
 
@@ -38,6 +49,19 @@ class SourceSuppression:
     source: str
     author_id: str
     handle_snapshot: str | None
+    reason: str
+    active: bool
+    created_at: float
+    updated_at: float
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class QueryExclusion:
+    source: str
+    phrase: str
     reason: str
     active: bool
     created_at: float
@@ -79,10 +103,25 @@ def _clean_reason(value: str) -> str:
     return cleaned
 
 
+def _clean_query_phrase(value: str) -> str:
+    cleaned = " ".join(str(value or "").split()).casefold()
+    if not QUERY_PHRASE.fullmatch(cleaned):
+        raise SamplingControlError("query exclusion phrase is not valid")
+    return cleaned
+
+
 def _row(row: sqlite3.Row) -> SourceSuppression:
     return SourceSuppression(
         source=row["source"], author_id=row["author_id"],
         handle_snapshot=row["handle_snapshot"], reason=row["reason"],
+        active=bool(row["active"]), created_at=float(row["created_at"]),
+        updated_at=float(row["updated_at"]),
+    )
+
+
+def _query_row(row: sqlite3.Row) -> QueryExclusion:
+    return QueryExclusion(
+        source=row["source"], phrase=row["phrase"], reason=row["reason"],
         active=bool(row["active"]), created_at=float(row["created_at"]),
         updated_at=float(row["updated_at"]),
     )
@@ -172,3 +211,54 @@ class SamplingControlStore:
             "ORDER BY source,author_id"
         ).fetchall()
         return [_row(row) for row in rows]
+
+    def set_query_exclusion(
+        self,
+        source: str,
+        phrase: str,
+        reason: str,
+        *,
+        active: bool,
+        now: float | None = None,
+    ) -> QueryExclusion:
+        """Add or reverse a content exclusion without hiding its audit trail."""
+        source = _clean_source(source)
+        phrase = _clean_query_phrase(phrase)
+        reason = _clean_reason(reason)
+        if not isinstance(active, bool):
+            raise SamplingControlError("active must be boolean")
+        timestamp = float(now if now is not None else time.time())
+        self.db.execute(
+            "INSERT INTO query_exclusions"
+            "(source,phrase,reason,active,created_at,updated_at) "
+            "VALUES (?,?,?,?,?,?) "
+            "ON CONFLICT(source,phrase) DO UPDATE SET "
+            "reason=excluded.reason,active=excluded.active,"
+            "updated_at=excluded.updated_at",
+            (source, phrase, reason, int(active), timestamp, timestamp),
+        )
+        self.db.commit()
+        return self.get_query_exclusion(source, phrase)
+
+    def get_query_exclusion(
+            self, source: str, phrase: str) -> QueryExclusion:
+        source = _clean_source(source)
+        phrase = _clean_query_phrase(phrase)
+        row = self.db.execute(
+            "SELECT source,phrase,reason,active,created_at,updated_at "
+            "FROM query_exclusions WHERE source=? AND phrase=?",
+            (source, phrase),
+        ).fetchone()
+        if row is None:
+            raise SamplingControlError("query exclusion does not exist")
+        return _query_row(row)
+
+    def active_query_exclusions(self, source: str) -> list[QueryExclusion]:
+        source = _clean_source(source)
+        rows = self.db.execute(
+            "SELECT source,phrase,reason,active,created_at,updated_at "
+            "FROM query_exclusions WHERE source=? AND active=1 "
+            "ORDER BY phrase",
+            (source,),
+        ).fetchall()
+        return [_query_row(row) for row in rows]

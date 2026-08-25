@@ -1,7 +1,7 @@
 # Probing method: wide enough to discover, narrow enough to operate
 
-Status: design contract only. This document does not activate a source, make an
-API request, schedule collection, or authorise spend.
+Status: design and offline implementation contract. This document does not
+activate a source, make an API request, schedule collection, or authorise spend.
 
 ## The central constraint
 
@@ -40,6 +40,11 @@ For each approved source and collection period:
    behaviour onset is unknown. Unknown onset is not a reason to discard a
    spontaneous report.
 
+For X's daily pilot, the time frame is enforced with API parameters, not with a
+required word in the query: `start_time` is inclusive, `end_time` is exclusive,
+and both remain inside the current UTC day. A post can therefore qualify without
+saying `today`, `recently`, or any other temporal phrase.
+
 A small per-family floor protects quieter models from being crowded out by the
 most-discussed one. Unused quota can be redistributed only under a versioned
 rule; silent opportunistic redistribution would change the sample over time.
@@ -59,7 +64,8 @@ otherwise restricted frame.
 
 ## Lane B: targeted surveillance
 
-Targeted queries come from a governed probe registry. Each probe has:
+Targeted queries come from governed probes and an LLT-like vernacular term
+registry. Each probe has:
 
 - a stable ID and version;
 - source and model aliases;
@@ -75,6 +81,11 @@ Probes should use behaviour language in both directions where applicable: for
 example, warmth gained and warmth lost, not a negative-only list. A candidate
 phrase such as `spiky` is never silently mapped to temperament or refusals. It
 first goes through human coding and offline review.
+
+Temporal expressions are retrieval hints in this lane, not coding rules. The X
+depth query is `model identity AND (temporal phrase OR governed term)`. It runs
+alongside—not instead of—the model-only discovery query, so `today` is useful
+social wording without becoming a mandatory string.
 
 Targeted results are query-conditioned surveillance. They can show change within
 the same stable probe over time, but their raw counts are not prevalence and
@@ -112,9 +123,10 @@ Apply these controls in order:
 6. **Audit the exclusions.** Human-review samples from chatter and abstentions,
    not only admitted reports, so classifier blind spots remain visible.
 
-An initial supervised pilot may reserve roughly one third of returned items for
-discovery and two thirds for targeted probes, with human audit drawn from both.
-That is a starting hypothesis, not a production constant. Adjust it using yield,
+The current offline X plan protects all four discovery families first. At a
+60-read ceiling it allocates four 10-result discovery requests and two rotating
+10-result depth requests. A separately approved 80-read pilot covers both lanes
+for all four families. This is not a production constant: adjust it using yield,
 novelty discovery, saturation, and cost rather than aesthetic preference.
 
 ## Metrics that decide whether the balance is working
@@ -162,6 +174,9 @@ sample has become an undocumented complaint query.
    **Aggregate review replay is implemented. Legacy rows lack query-run
    provenance, so their chatter/yield is measurable but discovery attribution
    and overlap correctly remain unavailable.**
-4. Propose a costed per-source pilot budget for explicit approval.
-5. Only then add supervised live collection flags; scheduling remains a separate
-   decision.
+4. Implement a costed X query plan with explicit UTC-day bounds, overlapping
+   model-only and temporal/LLT lanes, append-only term governance, reversible
+   exclusions, and query-level provenance. **Implemented and offline-tested;
+   no request was made as part of this work.**
+5. Run only as a manually supervised, explicitly flagged pilot. Scheduling and
+   any higher daily allowance remain separate decisions.

@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "ledger_id": "barometer-search-term-registry",
+  "status": "pilot",
+  "notes": "LLT-like retrieval terms. Matches retrieve candidates only and never determine coding, valence, or causality.",
+  "events": [
+    {
+      "event_id": "term_evt_0001",
+      "type": "search_term_version_created",
+      "recorded_at": "2026-08-25T19:15:00Z",
+      "term": {
+        "id": "llt_0001",
+        "definition_version": 1,
+        "phrase": "slow",
+        "concept_id": "beh_0001",
+        "known_ambiguities": ["May describe product or network latency rather than model generation latency"],
+        "origin": "operator-seeded vernacular",
+        "lifecycle": "proposed",
+        "created_at": "2026-08-25T19:15:00Z"
+      }
+    },
+    {
+      "event_id": "term_evt_0002",
+      "type": "search_term_version_created",
+      "recorded_at": "2026-08-25T19:15:01Z",
+      "term": {
+        "id": "llt_0002",
+        "definition_version": 1,
+        "phrase": "fast",
+        "concept_id": "beh_0001",
+        "known_ambiguities": ["May describe product or network speed rather than model generation latency"],
+        "origin": "operator-seeded vernacular",
+        "lifecycle": "proposed",
+        "created_at": "2026-08-25T19:15:01Z"
+      }
+    },
+    {
+      "event_id": "term_evt_0003",
+      "type": "search_term_version_created",
+      "recorded_at": "2026-08-25T19:15:02Z",
+      "term": {
+        "id": "llt_0003",
+        "definition_version": 1,
+        "phrase": "nerfed",
+        "concept_id": "beh_0038",
+        "known_ambiguities": ["Broad appraisal requiring downstream coding to a more specific concept when supported"],
+        "origin": "operator-seeded vernacular",
+        "lifecycle": "proposed",
+        "created_at": "2026-08-25T19:15:02Z"
+      }
+    },
+    {
+      "event_id": "term_evt_0004",
+      "type": "search_term_version_created",
+      "recorded_at": "2026-08-25T19:15:03Z",
+      "term": {
+        "id": "llt_0004",
+        "definition_version": 1,
+        "phrase": "upgraded",
+        "concept_id": "beh_0038",
+        "known_ambiguities": ["May refer to a named product release rather than observed performance"],
+        "origin": "operator-seeded vernacular",
+        "lifecycle": "proposed",
+        "created_at": "2026-08-25T19:15:03Z"
+      }
+    },
+    {
+      "event_id": "term_evt_0005",
+      "type": "search_term_version_created",
+      "recorded_at": "2026-08-25T19:15:04Z",
+      "term": {
+        "id": "llt_0005",
+        "definition_version": 1,
+        "phrase": "lazy",
+        "concept_id": "beh_0038",
+        "known_ambiguities": ["May indicate initiative, detail, completion, latency, or only a broad appraisal"],
+        "origin": "operator-seeded vernacular",
+        "lifecycle": "proposed",
+        "created_at": "2026-08-25T19:15:04Z"
+      }
+    },
+    {
+      "event_id": "term_evt_0006",
+      "type": "search_term_lifecycle_changed",
+      "recorded_at": "2026-08-25T19:16:00Z",
+      "term_id": "llt_0001",
+      "definition_version": 1,
+      "from": "proposed",
+      "to": "offline-tested",
+      "rationale": "Query syntax, concept link, and ambiguity metadata validated offline."
+    },
+    {
+      "event_id": "term_evt_0007",
+      "type": "search_term_lifecycle_changed",
+      "recorded_at": "2026-08-25T19:16:01Z",
+      "term_id": "llt_0002",
+      "definition_version": 1,
+      "from": "proposed",
+      "to": "offline-tested",
+      "rationale": "Query syntax, concept link, and ambiguity metadata validated offline."
+    },
+    {
+      "event_id": "term_evt_0008",
+      "type": "search_term_lifecycle_changed",
+      "recorded_at": "2026-08-25T19:16:02Z",
+      "term_id": "llt_0003",
+      "definition_version": 1,
+      "from": "proposed",
+      "to": "offline-tested",
+      "rationale": "Query syntax, concept link, and ambiguity metadata validated offline."
+    },
+    {
+      "event_id": "term_evt_0009",
+      "type": "search_term_lifecycle_changed",
+      "recorded_at": "2026-08-25T19:16:03Z",
+      "term_id": "llt_0004",
+      "definition_version": 1,
+      "from": "proposed",
+      "to": "offline-tested",
+      "rationale": "Query syntax, concept link, and ambiguity metadata validated offline."
+    },
+    {
+      "event_id": "term_evt_0010",
+      "type": "search_term_lifecycle_changed",
+      "recorded_at": "2026-08-25T19:16:04Z",
+      "term_id": "llt_0005",
+      "definition_version": 1,
+      "from": "proposed",
+      "to": "offline-tested",
+      "rationale": "Query syntax, concept link, and ambiguity metadata validated offline."
+    },
+    {
+      "event_id": "term_evt_0011",
+      "type": "search_term_lifecycle_changed",
+      "recorded_at": "2026-08-25T19:17:00Z",
+      "term_id": "llt_0001",
+      "definition_version": 1,
+      "from": "offline-tested",
+      "to": "pilot",
+      "rationale": "Operator requested a bounded two-pass X depth-search pilot."
+    },
+    {
+      "event_id": "term_evt_0012",
+      "type": "search_term_lifecycle_changed",
+      "recorded_at": "2026-08-25T19:17:01Z",
+      "term_id": "llt_0002",
+      "definition_version": 1,
+      "from": "offline-tested",
+      "to": "pilot",
+      "rationale": "Operator requested a bounded two-pass X depth-search pilot."
+    },
+    {
+      "event_id": "term_evt_0013",
+      "type": "search_term_lifecycle_changed",
+      "recorded_at": "2026-08-25T19:17:02Z",
+      "term_id": "llt_0003",
+      "definition_version": 1,
+      "from": "offline-tested",
+      "to": "pilot",
+      "rationale": "Operator requested a bounded two-pass X depth-search pilot."
+    },
+    {
+      "event_id": "term_evt_0014",
+      "type": "search_term_lifecycle_changed",
+      "recorded_at": "2026-08-25T19:17:03Z",
+      "term_id": "llt_0004",
+      "definition_version": 1,
+      "from": "offline-tested",
+      "to": "pilot",
+      "rationale": "Operator requested a bounded two-pass X depth-search pilot."
+    },
+    {
+      "event_id": "term_evt_0015",
+      "type": "search_term_lifecycle_changed",
+      "recorded_at": "2026-08-25T19:17:04Z",
+      "term_id": "llt_0005",
+      "definition_version": 1,
+      "from": "offline-tested",
+      "to": "pilot",
+      "rationale": "Operator requested a bounded two-pass X depth-search pilot."
+    }
+  ]
+}

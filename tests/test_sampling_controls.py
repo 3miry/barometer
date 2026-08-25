@@ -12,6 +12,25 @@ from barometer.sampling_controls import (
 
 
 class SamplingControlTests(unittest.TestCase):
+    def test_query_exclusion_is_reversible_and_rejects_query_syntax(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "controls.db"
+            with SamplingControlStore(path) as store:
+                active = store.set_query_exclusion(
+                    "x", "Best", "repeated_chatter", active=True, now=10.0)
+                self.assertEqual(active.phrase, "best")
+                self.assertEqual(
+                    [item.phrase for item in store.active_query_exclusions("x")],
+                    ["best"],
+                )
+                paused = store.set_query_exclusion(
+                    "x", "best", "repeated_chatter", active=False, now=20.0)
+                self.assertFalse(paused.active)
+                self.assertEqual(store.active_query_exclusions("x"), [])
+                with self.assertRaises(SamplingControlError):
+                    store.set_query_exclusion(
+                        "x", "best OR from:someone", "other", active=True)
+
     def test_source_suppression_round_trip_is_reversible_and_auditable(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "controls.db"
