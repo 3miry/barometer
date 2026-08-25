@@ -36,7 +36,14 @@ def tick(store: Store, adapters: list, runner: CanaryRunner | None = None,
                 report["ephemeral_complaints"] = (
                     report.get("ephemeral_complaints", 0) + len(fetched))
             else:
-                report["new_complaints"] += store.add_complaints(fetched)
+                batches = getattr(adapter, "collection_batches", ())
+                if batches:
+                    for batch in batches:
+                        report["new_complaints"] += store.add_complaints(
+                            list(batch.complaints), batch.run,
+                            list(batch.result_ranks))
+                else:
+                    report["new_complaints"] += store.add_complaints(fetched)
         except Exception as exc:                       # taps fail loudly but singly
             report.setdefault("tap_errors", []).append(f"{type(adapter).__name__}: {exc}")
         else:

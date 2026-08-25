@@ -5,6 +5,7 @@ suite never spends anyone's money — house law since the incident.
 Live transports are provided but nothing here calls them by default."""
 from __future__ import annotations
 import base64
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import html
 import json
@@ -12,35 +13,83 @@ import re
 import time
 import urllib.parse
 import urllib.request
+import uuid
 from .detect import Complaint
 from .catalog import infer_variant
+from .probes import CollectionRun
 
 USER_AGENT = "the-barometer/0.1 (fleet weather, not verdicts)"
 X_POST_READ_USD = 0.005
 X_RECENT_SEARCH_URL = "https://api.x.com/2/tweets/search/recent"
-X_QUERIES = {
-    "claude": (
-        '(Claude OR Anthropic OR "Fable 5" OR "Opus 5" OR "Sonnet 5" OR "Opus 4.8") '
-        '(worse OR degraded OR broken OR slow OR nerfed OR lazy OR dumb '
-        'OR "off today" OR "anyone else") lang:en -is:retweet'
+X_QUERY_VERSION = 2
+
+
+@dataclass(frozen=True)
+class XQuerySpec:
+    query_id: str
+    family: str
+    lane: str
+    query: str
+
+
+@dataclass(frozen=True)
+class XCollectionBatch:
+    run: CollectionRun
+    complaints: tuple[Complaint, ...]
+    result_ranks: tuple[int, ...]
+
+
+X_MODEL_IDENTITY_QUERIES = (
+    XQuerySpec(
+        "x.discovery.model_identity.claude", "claude", "discovery",
+        '("Fable 5" OR "Opus 5" OR "Sonnet 5" OR "Opus 4.8" '
+        'OR "Claude Opus" OR "Claude Sonnet" OR "Claude Fable") '
+        'lang:en -is:retweet',
     ),
-    "gpt": (
-        '(ChatGPT OR "GPT-5.5" OR "GPT-5.6" OR OpenAI OR Sol OR Luna OR Terra) '
-        '(worse OR degraded OR broken OR slow OR nerfed OR lazy OR dumb '
-        'OR "off today" OR "anyone else") lang:en -is:retweet'
+    XQuerySpec(
+        "x.discovery.model_identity.gpt", "gpt", "discovery",
+        '("GPT-5.5" OR "GPT 5.5" OR "GPT-5.6" OR "GPT 5.6" '
+        'OR "ChatGPT Sol" OR "ChatGPT Luna" OR "ChatGPT Terra") '
+        'lang:en -is:retweet',
     ),
-    "gemini": (
-        '(Gemini OR "Gemini 3.1 Pro" OR "Gemini Flash 3.5" '
-        'OR "Gemini Flash-Lite 3.7" OR "Google AI") '
-        '(worse OR degraded OR broken OR slow OR nerfed OR lazy OR dumb '
-        'OR "off today" OR "anyone else") lang:en -is:retweet'
+    XQuerySpec(
+        "x.discovery.model_identity.gemini", "gemini", "discovery",
+        '("Gemini 3.1 Pro" OR "Gemini Pro 3.1" OR "Gemini Flash 3.5" '
+        'OR "Gemini 3.5 Flash" OR "Gemini Flash-Lite 3.7" '
+        'OR "Gemini 3.7 Flash Lite") lang:en -is:retweet',
     ),
-    "grok": (
-        '(Grok OR xAI OR "Grok 4.5" OR "Grok 4.6") '
-        '(worse OR degraded OR broken OR slow OR nerfed OR lazy OR dumb '
-        'OR "off today" OR "anyone else") lang:en -is:retweet'
+    XQuerySpec(
+        "x.discovery.model_identity.grok", "grok", "discovery",
+        '("Grok 4.5" OR "Grok-4.5" OR "Grok 4.6" OR "Grok-4.6") '
+        'lang:en -is:retweet',
     ),
-}
+)
+
+X_BROAD_IDENTITY_QUERIES = (
+    XQuerySpec(
+        "x.discovery.product_identity.claude", "claude", "discovery",
+        'Claude (AI OR model OR chatbot OR LLM) lang:en -is:retweet',
+    ),
+    XQuerySpec(
+        "x.discovery.product_identity.gpt", "gpt", "discovery",
+        'ChatGPT lang:en -is:retweet',
+    ),
+    XQuerySpec(
+        "x.discovery.product_identity.gemini", "gemini", "discovery",
+        'Gemini (AI OR model OR chatbot OR LLM) lang:en -is:retweet',
+    ),
+    XQuerySpec(
+        "x.discovery.product_identity.grok", "grok", "discovery",
+        'Grok (AI OR model OR chatbot OR LLM) lang:en -is:retweet',
+    ),
+)
+
+
+def x_default_query_specs(day_utc: str) -> tuple[XQuerySpec, ...]:
+    """Four high-yield model queries plus a rotating two-family broad audit."""
+    day_number = datetime.fromisoformat(day_utc).date().toordinal()
+    offset = (day_number % 2) * 2
+    return X_MODEL_IDENTITY_QUERIES + X_BROAD_IDENTITY_QUERIES[offset:offset + 2]
 
 def live_transport(url: str) -> dict:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
@@ -295,6 +344,7 @@ class XAdapter:
             queries: dict[str, str] | None = None,
             daily_read_limit: int = 60,
             per_query_limit: int = 20,
+            retain_filter=looks_like_complaint,
             transport=x_live_transport,
             clock=time.time):
         if not bearer_token:
@@ -305,28 +355,43 @@ class XAdapter:
             raise ValueError("X per-query limit must be between 10 and 100")
         self.store = store
         self.bearer_token = bearer_token
-        self.queries = queries or X_QUERIES
-        self.daily_read_limit = daily_read_limit
-        fair_share = max(10, daily_read_limit // max(1, len(self.queries)))
-        self.per_query_limit = min(per_query_limit, fair_share)
-        self.transport = transport
         self.clock = clock
+        if queries is None:
+            self.query_specs = x_default_query_specs(self._day())
+        else:
+            self.query_specs = tuple(
+                XQuerySpec(
+                    f"x.custom.{key}", key.split(":", 1)[0],
+                    "legacy_unknown", query,
+                )
+                for key, query in queries.items()
+            )
+        self.queries = {
+            spec.query_id: spec.query for spec in self.query_specs
+        }
+        self.daily_read_limit = daily_read_limit
+        fair_share = max(10, daily_read_limit // max(1, len(self.query_specs)))
+        self.per_query_limit = min(per_query_limit, fair_share)
+        self.retain_filter = retain_filter
+        self.transport = transport
         self.errors: list[str] = []
         self._stats: dict = {}
+        self.collection_batches: list[XCollectionBatch] = []
 
     def _day(self) -> str:
         return datetime.fromtimestamp(
             self.clock(), tz=timezone.utc).date().isoformat()
 
     @staticmethod
-    def _cursor_key(model: str) -> str:
-        return f"x:recent:v1:{model}:since_id"
+    def _cursor_key(query_id: str) -> str:
+        return f"x:recent:v{X_QUERY_VERSION}:{query_id}:since_id"
 
     def fetch(self, since: float) -> list[Complaint]:
         out: list[Complaint] = []
         seen: set[str] = set()
         day = self._day()
         self.errors = []
+        self.collection_batches = []
         self._stats = {
             "day_utc": day,
             "queries_attempted": 0,
@@ -334,9 +399,12 @@ class XAdapter:
             "accepted_complaints": 0,
             "saturated_queries": 0,
             "budget_exhausted": False,
+            "query_version": X_QUERY_VERSION,
+            "query_runs": [],
         }
 
-        for model, query in self.queries.items():
+        for spec in self.query_specs:
+            query_started = self.clock()
             used = self.store.tap_usage(day, self.source_name)
             remaining = self.daily_read_limit - used
             if remaining < 10:
@@ -350,11 +418,11 @@ class XAdapter:
                 break
 
             params = {
-                "query": query,
+                "query": spec.query,
                 "max_results": str(request_limit),
                 "tweet.fields": "created_at,entities",
             }
-            cursor = self.store.tap_state(self._cursor_key(model))
+            cursor = self.store.tap_state(self._cursor_key(spec.query_id))
             if cursor:
                 params["since_id"] = cursor
             else:
@@ -373,17 +441,32 @@ class XAdapter:
                     raise ValueError("X response data is not a list")
                 if payload.get("errors"):
                     self.errors.append(
-                        f"{model}: X returned {len(payload['errors'])} API error(s)")
+                        f"{spec.family}: X returned {len(payload['errors'])} API error(s)")
             except Exception as exc:
                 # Keep the full reservation: a timeout may have delivered and
                 # billed results even though Barometer never received them.
-                self.errors.append(f"{model}: {type(exc).__name__}: {exc}")
+                failure_note = f"{type(exc).__name__}: {exc}"
+                self.errors.append(f"{spec.family}: {failure_note}")
+                run = CollectionRun(
+                    run_id=f"x-{uuid.uuid4().hex}", source="x",
+                    lane=spec.lane, query_id=spec.query_id,
+                    query_version=X_QUERY_VERSION,
+                    started_at=query_started, completed_at=self.clock(),
+                    returned_candidates=0, retained_candidates=0,
+                    item_cap=request_limit, saturated=False,
+                    cost_units=request_limit,
+                    cost_usd_upper_bound=request_limit * X_POST_READ_USD,
+                    frame_note=(
+                        "Ambiguous request failure; full reservation retained. "
+                        + failure_note),
+                )
+                self.collection_batches.append(XCollectionBatch(run, (), ()))
                 continue
 
             actual = len(posts)
             if actual > request_limit:
                 self.errors.append(
-                    f"{model}: response exceeded reserved read allowance")
+                    f"{spec.family}: response exceeded reserved read allowance")
                 continue
             self.store.adjust_tap_usage(
                 day, self.source_name, actual - request_limit)
@@ -397,26 +480,28 @@ class XAdapter:
             ]
             if numeric_ids:
                 self.store.set_tap_state(
-                    self._cursor_key(model), str(max(numeric_ids)))
+                    self._cursor_key(spec.query_id), str(max(numeric_ids)))
 
-            for post in posts:
+            query_complaints: list[Complaint] = []
+            result_ranks: list[int] = []
+            for rank, post in enumerate(posts, start=1):
                 post_id = str(post.get("id", ""))
                 text = _plain_text(str(post.get("text", "")))[:500]
                 created_at = post.get("created_at")
-                if not post_id or post_id in seen or not text or not created_at:
+                if not post_id or not text or not created_at:
                     continue
-                seen.add(post_id)
                 try:
                     ts = _x_timestamp(str(created_at))
                 except ValueError:
-                    self.errors.append(f"{model}: invalid timestamp for post {post_id}")
+                    self.errors.append(
+                        f"{spec.family}: invalid timestamp for post {post_id}")
                     continue
                 routed_model = route_model(text)
-                if routed_model is None and infer_variant(model, text):
-                    routed_model = model
-                if ts < since or not routed_model or not looks_like_complaint(text):
+                if routed_model is None and infer_variant(spec.family, text):
+                    routed_model = spec.family
+                if ts < since or not routed_model or not self.retain_filter(text):
                     continue
-                out.append(Complaint(
+                complaint = Complaint(
                     ts=ts,
                     source="x",
                     model=routed_model,
@@ -424,7 +509,36 @@ class XAdapter:
                     url=f"https://x.com/i/web/status/{post_id}",
                     seed_url=_x_seed_url(post),
                     variant=infer_variant(routed_model, text),
-                ))
+                )
+                query_complaints.append(complaint)
+                result_ranks.append(rank)
+                if post_id not in seen:
+                    seen.add(post_id)
+                    out.append(complaint)
+
+            run = CollectionRun(
+                run_id=f"x-{uuid.uuid4().hex}", source="x",
+                lane=spec.lane, query_id=spec.query_id,
+                query_version=X_QUERY_VERSION,
+                started_at=query_started, completed_at=self.clock(),
+                returned_candidates=actual,
+                retained_candidates=len(query_complaints),
+                item_cap=request_limit, saturated=actual == request_limit,
+                cost_units=actual,
+                cost_usd_upper_bound=actual * X_POST_READ_USD,
+                frame_note=(
+                    "Valence-neutral identity query; X recent search is a "
+                    "ranked frame, not a random platform sample."),
+            )
+            self.collection_batches.append(XCollectionBatch(
+                run, tuple(query_complaints), tuple(result_ranks)))
+            self._stats["query_runs"].append({
+                "query_id": spec.query_id,
+                "lane": spec.lane,
+                "returned_candidates": actual,
+                "retained_candidates": len(query_complaints),
+                "saturated": actual == request_limit,
+            })
 
         self._stats["accepted_complaints"] = len(out)
         self._stats["budget_exhausted"] = (

@@ -12,8 +12,10 @@ from urllib.parse import parse_qs, urlparse
 from unittest.mock import patch
 import run_barometer
 from barometer.store import Store
-from barometer.adapters import (RedditAdapter, HNAdapter, XAdapter,
-                                reddit_token_transport, route_model)
+from barometer.adapters import (
+    RedditAdapter, HNAdapter, XAdapter, reddit_token_transport, route_model,
+    x_default_query_specs,
+)
 from barometer.canary import CanaryRunner, BudgetRefusal, CANARY_TEXT
 from barometer.catalog import infer_variant
 from barometer.cli import tick
@@ -220,18 +222,66 @@ class AdapterTests(unittest.TestCase):
                     {c.model for c in complaints}, {"claude", "gemini", "grok"})
                 self.assertEqual(
                     complaints[0].seed_url, "https://example.com/seed")
-                self.assertEqual(store.tap_usage("2026-06-12", "x"), 4)
+                self.assertEqual(store.tap_usage("2026-06-12", "x"), 6)
                 usage = adapter.usage_report()
-                self.assertEqual(usage["candidate_posts"], 4)
+                self.assertEqual(usage["candidate_posts"], 6)
                 self.assertEqual(usage["accepted_complaints"], 3)
-                self.assertEqual(usage["estimated_cost_usd_upper_bound"], 0.02)
+                self.assertEqual(usage["estimated_cost_usd_upper_bound"], 0.03)
+                self.assertEqual(len(adapter.collection_batches), 6)
 
                 # Cursors suppress old posts. Empty successful responses refund
                 # their reservation, so the conservative daily ledger stays put.
                 self.assertEqual(adapter.fetch(NOW - 86400), [])
-                self.assertEqual(store.tap_usage("2026-06-12", "x"), 4)
-                self.assertTrue(all("since_id" in p for p in calls[4:]))
-                self.assertTrue(all(p["max_results"] == ["15"] for p in calls))
+                self.assertEqual(store.tap_usage("2026-06-12", "x"), 6)
+                self.assertTrue(all("since_id" in p for p in calls[6:]))
+                self.assertTrue(all(p["max_results"] == ["10"] for p in calls))
+
+    def test_x_default_queries_are_valence_neutral_and_rotate_broad_audit(self):
+        first = x_default_query_specs("2026-06-12")
+        second = x_default_query_specs("2026-06-13")
+        self.assertEqual(len(first), 6)
+        self.assertEqual(len(second), 6)
+        self.assertEqual(
+            {item.family for item in first[:4]},
+            {"claude", "gpt", "gemini", "grok"},
+        )
+        self.assertNotEqual(
+            {item.query_id for item in first[4:]},
+            {item.query_id for item in second[4:]},
+        )
+        combined = " ".join(item.query for item in first + second).lower()
+        for excluded in (
+            "anthropic", "openai", "xai", "google ai", "worse", "broken",
+            "nerfed", "lazy", "dumb", "degraded",
+        ):
+            self.assertNotIn(excluded, combined)
+
+    def test_x_private_candidate_mode_retains_chatter_for_review(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with Store(os.path.join(directory, "candidate.db")) as store:
+                adapter = XAdapter(
+                    store,
+                    "test-token",
+                    queries={"gpt": '"GPT-5.6" lang:en -is:retweet'},
+                    daily_read_limit=10,
+                    per_query_limit=10,
+                    retain_filter=lambda _text: True,
+                    transport=lambda _url, _token: {
+                        "data": [{
+                            **X_POSTS["gpt"],
+                            "text": "GPT-5.6 helped me find my cat.",
+                        }],
+                    },
+                    clock=lambda: NOW,
+                )
+                candidates = adapter.fetch(NOW - 86400)
+                self.assertEqual(len(candidates), 1)
+                self.assertEqual(
+                    adapter.collection_batches[0].run.lane,
+                    "legacy_unknown",
+                )
+                self.assertEqual(
+                    adapter.collection_batches[0].run.retained_candidates, 1)
 
     def test_x_ambiguous_failure_consumes_reserved_allowance(self):
         with tempfile.TemporaryDirectory() as d:
