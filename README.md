@@ -31,6 +31,9 @@ perceived weather. Core doctrine: says "something changed", never "nerfed".
 - `barometer/openrouter_classifier.py` and `classify_x_batch.py` — explicitly
   enabled, ZDR-enforced blind classifier evaluation with strict structured
   outputs, resumable private predictions, and a local batch cost ceiling.
+- `barometer/blind_evaluation.py` and `evaluate_blind_predictions.py` —
+  read-only aggregate comparison of frozen predictions with completed human
+  review labels; output includes input hashes but never source text or URLs.
   They are disconnected from detector v0 and public output; see
   `SHADOW_CLASSIFIER.md`.
 - `SIGNAL_DETECTION.md` — the versioned post-MVP architecture for governed
